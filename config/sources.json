@@ -1,0 +1,100 @@
+{
+  "pbp": {
+    "tag": "pbp",
+    "seasonal": true,
+    "preferred": "parquet",
+    "min_season": 1999
+  },
+  "schedules": {
+    "tag": "schedules",
+    "seasonal": false,
+    "preferred": "parquet"
+  },
+  "player_stats": {
+    "tag": "player_stats",
+    "seasonal": false,
+    "preferred": "parquet"
+  },
+  "team_stats": {
+    "tag": "team_stats",
+    "seasonal": false,
+    "preferred": "parquet"
+  },
+  "players": {
+    "tag": "players",
+    "seasonal": false,
+    "preferred": "parquet"
+  },
+  "rosters": {
+    "tag": "rosters",
+    "seasonal": true,
+    "preferred": "parquet"
+  },
+  "weekly_rosters": {
+    "tag": "weekly_rosters",
+    "seasonal": true,
+    "preferred": "parquet",
+    "min_season": 2002
+  },
+  "snap_counts": {
+    "tag": "snap_counts",
+    "seasonal": false,
+    "preferred": "parquet"
+  },
+  "pfr_advstats": {
+    "tag": "pfr_advstats",
+    "seasonal": false,
+    "preferred": "parquet"
+  },
+  "nextgen_stats": {
+    "tag": "nextgen_stats",
+    "seasonal": false,
+    "preferred": "parquet"
+  },
+  "depth_charts": {
+    "tag": "depth_charts",
+    "seasonal": false,
+    "preferred": "parquet"
+  },
+  "injuries": {
+    "tag": "injuries",
+    "seasonal": false,
+    "preferred": "parquet"
+  },
+  "participation": {
+    "tag": "participation",
+    "seasonal": false,
+    "preferred": "parquet"
+  },
+  "ftn_charting": {
+    "tag": "ftn_charting",
+    "seasonal": false,
+    "preferred": "parquet",
+    "min_season": 2022
+  },
+  "espn_qbr": {
+    "tag": "espn_qbr",
+    "seasonal": false,
+    "preferred": "parquet"
+  },
+  "trades": {
+    "tag": "trades",
+    "seasonal": false,
+    "preferred": "parquet"
+  },
+  "draft_picks": {
+    "tag": "draft_picks",
+    "seasonal": false,
+    "preferred": "parquet"
+  },
+  "combine": {
+    "tag": "combine",
+    "seasonal": false,
+    "preferred": "parquet"
+  },
+  "contracts": {
+    "tag": "contracts",
+    "seasonal": false,
+    "preferred": "parquet"
+  }
+}
