@@ -6,6 +6,14 @@ on:
         description: First season
         required: false
         default: "1999"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/refresh.yml"
+      - "scripts/**"
+      - "src/**"
+      - "config/**"
+      - "requirements.txt"
   schedule:
     - cron: "45 10 * 9-12,1-2 2,5"
 permissions:
