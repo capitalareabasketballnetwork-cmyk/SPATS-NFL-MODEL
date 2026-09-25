@@ -18,6 +18,9 @@ on:
     - cron: "45 10 * 9-12,1-2 2,5"
 permissions:
   contents: write
+concurrency:
+  group: spats-refresh-main
+  cancel-in-progress: true
 jobs:
   refresh:
     runs-on: ubuntu-latest
@@ -35,10 +38,13 @@ jobs:
       - run: python scripts/train_baselines.py
       - name: Optimize winner statistics and weights
         run: python scripts/optimize_winner_model.py
-      - name: Predict 2026 Week 3\n        run: python scripts/predict_week3_2026.py\n      - name: Commit compact reports
+      - name: Predict 2026 Week 3
+        run: python scripts/predict_week3_2026.py
+      - name: Commit compact reports
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add reports/
           git diff --cached --quiet || git commit -m "Refresh SPATS coverage and backtests"
+          git pull --rebase origin main
           git push
