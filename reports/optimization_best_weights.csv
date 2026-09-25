@@ -1,5 +1,12 @@
 feature,coefficient,weight_pct,direction
-epa_per_play_l8_diff,0.3606433081469603,57.14587335333229,home-positive
-pass_epa_ewm_diff,0.11989666904234977,18.998272558515144,home-positive
-success_rate_ewm_diff,0.10352649432547915,16.404330261487953,home-positive
-pass_success_ewm_diff,0.047026006356896785,7.451523826664613,home-positive
+def_pass_epa_l8_diff,-0.2802503544847554,21.331803697807537,away-positive
+total_epa_l8_diff,0.2198900822869895,16.73736355861045,home-positive
+success_rate_l8_diff,0.166382994455538,12.664566947307831,home-positive
+success_rate_ewm_diff,0.12876657174376496,9.801319382192117,home-positive
+wp_added_l5_diff,0.09949198689148223,7.573027116329259,home-positive
+sack_rate_l5_diff,-0.09763953541649097,7.4320241502602995,away-positive
+def_turnovers_per_drive_ewm_diff,0.08586351883776269,6.535669623032669,home-positive
+def_turnovers_per_drive_l8_diff,-0.06949162106471254,5.289490612492735,away-positive
+success_rate_l5_diff,-0.06906857847443856,5.257289898569901,away-positive
+cpoe_l8_diff,0.05185143303399515,3.946773209135636,home-positive
+explosive_pass_rate_l8_diff,0.04507105929181107,3.430671804261562,home-positive

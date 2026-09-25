@@ -1,21 +1,28 @@
 {
   "selected_features": [
-    "epa_per_play_l8_diff",
-    "pass_success_ewm_diff",
+    "total_epa_l8_diff",
+    "def_pass_epa_l8_diff",
     "success_rate_ewm_diff",
-    "pass_epa_ewm_diff"
+    "sack_rate_l5_diff",
+    "cpoe_l8_diff",
+    "success_rate_l8_diff",
+    "wp_added_l5_diff",
+    "def_turnovers_per_drive_ewm_diff",
+    "def_turnovers_per_drive_l8_diff",
+    "explosive_pass_rate_l8_diff",
+    "success_rate_l5_diff"
   ],
-  "best_C": 0.1,
+  "best_C": 0.05,
   "historical_walk_forward": {
-    "games": 5951,
-    "accuracy": 0.6183834649638716,
-    "log_loss": 0.6472834869178599,
-    "brier": 0.22807481823050654
+    "games": 3018,
+    "accuracy": 0.6325381047051027,
+    "log_loss": 0.6382844305438709,
+    "brier": 0.2238577472217129
   },
   "current_2026_fronttest": {
     "games": 33,
-    "accuracy": 0.6363636363636364,
-    "log_loss": 0.7387004322291139,
-    "brier": 0.2696538050608845
+    "accuracy": 0.6060606060606061,
+    "log_loss": 0.6935743754564918,
+    "brier": 0.25078109036590485
   }
 }
