@@ -28,8 +28,15 @@ def score_seasons(d, feats, seasons, C=.3):
         tr=tr[tr.home_margin!=0]; te=te[te.home_margin!=0]
         if len(te)<40: continue
         ytr=(tr.home_margin>0).astype(int); yte=(te.home_margin>0).astype(int)
-        m=model(C); m.fit(tr[feats],ytr)
-        p=m.predict_proba(te[feats])[:,1]
+        # A feature may exist overall but be entirely missing in an early
+        # historical training fold (for example CPOE before it was tracked).
+        # Skip that season for this candidate instead of allowing the imputer
+        # to drop every column and hand StandardScaler a 0-column matrix.
+        usable=[c for c in feats if tr[c].notna().any()]
+        if not usable:
+            continue
+        m=model(C); m.fit(tr[usable],ytr)
+        p=m.predict_proba(te[usable])[:,1]
         vals.append((len(te),accuracy_score(yte,p>=.5),log_loss(yte,p,labels=[0,1]),brier_score_loss(yte,p)))
     if not vals: return None
     n=sum(x[0] for x in vals)
