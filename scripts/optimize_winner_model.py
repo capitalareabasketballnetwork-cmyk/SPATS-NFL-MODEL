@@ -53,7 +53,10 @@ def main():
     seasons=sorted(int(x) for x in d.season.dropna().unique())
     # Tune on completed historical seasons only; 2026 remains a current/front-test season.
     completed=[s for s in seasons if s<=2025]
-    eval_seasons=[s for s in completed if s>=2004]
+    # Focus optimization on the modern NFL era requested for production.
+    # 2015-2025 are scored out-of-sample; earlier seasons remain available
+    # as training history for the first folds.
+    eval_seasons=[s for s in completed if s>=2015]
 
     # Fast leakage-safe screening: each feature evaluated in walk-forward form.
     uni=[]
@@ -62,11 +65,14 @@ def main():
         if r: uni.append({"feature":c,**r})
     uni=pd.DataFrame(uni).sort_values(["log_loss","accuracy"],ascending=[True,False])
     uni.to_csv(OUT/"optimization_univariate.csv",index=False)
-    pool=uni.head(40).feature.tolist()
+    # Search a broader candidate pool. This is intentionally more expensive
+    # than the first pass so useful complementary features are less likely to
+    # be discarded just because their standalone score is modest.
+    pool=uni.head(80).feature.tolist()
 
     # Greedy forward selection minimizes walk-forward log loss.
     selected=[]; leaderboard=[]; remaining=pool.copy()
-    for step in range(min(15,len(pool))):
+    for step in range(min(20,len(pool))):
         trials=[]
         for c in remaining:
             r=score_seasons(d,selected+[c],eval_seasons)
@@ -74,7 +80,7 @@ def main():
         if not trials: break
         trials.sort()
         _,_,best,r=trials[0]
-        if leaderboard and r["log_loss"] >= leaderboard[-1]["log_loss"]-0.00015:
+        if leaderboard and r["log_loss"] >= leaderboard[-1]["log_loss"]-0.00005:
             break
         selected.append(best); remaining.remove(best)
         leaderboard.append({"n_features":len(selected),"added":best,"features":";".join(selected),**r})
@@ -83,7 +89,7 @@ def main():
     if not selected: raise RuntimeError("No usable feature combination found")
 
     # Tune regularization for the selected combination.
-    cs=[.01,.03,.1,.3,1,3,10]
+    cs=[.005,.01,.02,.03,.05,.1,.2,.3,.5,1,2,3,5,10]
     tune=[]
     for C in cs:
         r=score_seasons(d,selected,eval_seasons,C)
