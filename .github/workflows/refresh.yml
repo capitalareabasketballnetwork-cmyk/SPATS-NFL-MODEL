@@ -33,6 +33,8 @@ jobs:
         run: python scripts/build_database.py --start ${{ inputs.start || '1999' }} --end 2026
       - run: python scripts/validate_database.py
       - run: python scripts/train_baselines.py
+      - name: Optimize winner statistics and weights
+        run: python scripts/optimize_winner_model.py
       - name: Commit compact reports
         run: |
           git config user.name "github-actions[bot]"
