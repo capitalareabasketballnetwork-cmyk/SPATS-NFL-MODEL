@@ -1,0 +1,5 @@
+feature,coefficient,weight_pct,direction
+epa_per_play_l8_diff,0.3606433081469603,57.14587335333229,home-positive
+pass_epa_ewm_diff,0.11989666904234977,18.998272558515144,home-positive
+success_rate_ewm_diff,0.10352649432547915,16.404330261487953,home-positive
+pass_success_ewm_diff,0.047026006356896785,7.451523826664613,home-positive

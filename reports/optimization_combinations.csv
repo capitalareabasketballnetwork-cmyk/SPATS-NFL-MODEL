@@ -1,0 +1,5 @@
+n_features,added,features,games,accuracy,log_loss,brier
+1,epa_per_play_l8_diff,epa_per_play_l8_diff,5951,0.6158628801882037,0.649535331444361,0.22906988300207778
+2,pass_success_ewm_diff,epa_per_play_l8_diff;pass_success_ewm_diff,5951,0.617879348008738,0.6477576596568247,0.22826749169754473
+3,success_rate_ewm_diff,epa_per_play_l8_diff;pass_success_ewm_diff;success_rate_ewm_diff,5951,0.6167030751134264,0.6475879798631825,0.22819352008867858
+4,pass_epa_ewm_diff,epa_per_play_l8_diff;pass_success_ewm_diff;success_rate_ewm_diff;pass_epa_ewm_diff,5951,0.6180473869937826,0.6472937647223528,0.22807949953259005
