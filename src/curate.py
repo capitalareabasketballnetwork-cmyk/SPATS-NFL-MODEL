@@ -13,6 +13,7 @@ def build_games(p):
       season=("season","first"),season_type=("season_type","first"),week=("week","first"),
       game_date=("game_date","first"),home_team=("home_team","first"),away_team=("away_team","first"),
       home_score=("total_home_score","max"),away_score=("total_away_score","max"))
+    g["game_date"]=pd.to_datetime(g["game_date"],errors="coerce")
     g["home_margin"]=g.home_score-g.away_score
     g["total_points"]=g.home_score+g.away_score
     g["home_win"]=(g.home_margin>0).astype("Int64")
@@ -88,6 +89,11 @@ def pregame_roll(t, windows=(3,5,8), alpha=.35):
     return o
 
 def matchup_matrix(g,p):
+    # Normalize merge keys explicitly: PBP-derived games can carry dates as strings
+    # while rolling features use pandas datetimes.
+    g=g.copy(); p=p.copy()
+    g["game_date"]=pd.to_datetime(g["game_date"],errors="coerce")
+    p["game_date"]=pd.to_datetime(p["game_date"],errors="coerce")
     h=p.rename(columns={"team":"home_team","opponent":"home_prev_opp"})
     a=p.rename(columns={"team":"away_team","opponent":"away_prev_opp"})
     z=g.merge(h,on=["game_id","season","week","game_date","home_team"],how="left")
