@@ -1,0 +1,11 @@
+data/raw/**
+data/curated/**
+data/features/**
+!data/raw/.gitkeep
+!data/curated/.gitkeep
+!data/features/.gitkeep
+models/*.joblib
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
