@@ -21,6 +21,12 @@ def build_games(p):
 
 def build_team_game(p):
     x=p[p.posteam.notna() & p.defteam.notna()].copy()
+    # Keep only the two canonical teams assigned to the game. Historical PBP can
+    # contain stray/non-team posteam values that otherwise create a third row.
+    if {"home_team","away_team"}.issubset(x.columns):
+        valid_off=x["posteam"].eq(x["home_team"]) | x["posteam"].eq(x["away_team"])
+        valid_def=x["defteam"].eq(x["home_team"]) | x["defteam"].eq(x["away_team"])
+        x=x[valid_off & valid_def & x["posteam"].ne(x["defteam"])].copy()
     x["pass_i"]=_s(x,"pass_attempt").fillna(0).eq(1)
     x["rush_i"]=_s(x,"rush_attempt").fillna(0).eq(1)
     x["success_i"]=_s(x,"success",np.nan)
