@@ -1,0 +1,17 @@
+dataset,rows,columns,min_season,max_season
+pbp,1285290,372,1999.0,2026.0
+schedules,7548,46,1999.0,2026.0
+player_stats,1557636,130,1999.0,2024.0
+players,24830,39,,
+snap_counts,327698,16,2013.0,2026.0
+pfr_advstats,139051,122,2018.0,2026.0
+nextgen_stats,27173,51,2016.0,2026.0
+depth_charts,869185,26,2001.0,2024.0
+injuries,91475,17,2009.0,2026.0
+ftn_charting,190539,29,2022.0,2026.0
+trades,4975,11,2002.0,2026.0
+draft_picks,7154,36,1999.0,2026.0
+combine,8968,18,2000.0,2026.0
+contracts,52944,26,,
+games,7306,12,1999.0,2026.0
+team_game_derived,14612,66,1999.0,2026.0
