@@ -1,0 +1,49 @@
+week,game_id,away_team,home_team,away_ml,home_ml,source,price_basis
+1,2026_01_NE_SEA,NE,SEA,142,-170,The Odds Gap / DraftKings,closing pre-kickoff
+1,2026_01_SF_LA,SF,LA,180,-218,The Odds Gap / DraftKings,closing pre-kickoff
+1,2026_01_BAL_IND,BAL,IND,-175,145,The Odds Gap / DraftKings,closing pre-kickoff
+1,2026_01_ATL_PIT,ATL,PIT,220,-270,The Odds Gap / DraftKings,closing pre-kickoff
+1,2026_01_NO_DET,NO,DET,270,-340,The Odds Gap / DraftKings,closing pre-kickoff
+1,2026_01_CHI_CAR,CHI,CAR,-166,140,The Odds Gap / DraftKings,closing pre-kickoff
+1,2026_01_CLE_JAX,CLE,JAX,350,-455,The Odds Gap / DraftKings,closing pre-kickoff
+1,2026_01_BUF_HOU,BUF,HOU,-118,-102,The Odds Gap / DraftKings,closing pre-kickoff
+1,2026_01_NYJ_TEN,NYJ,TEN,102,-122,The Odds Gap / DraftKings,closing pre-kickoff
+1,2026_01_TB_CIN,TB,CIN,170,-205,The Odds Gap / DraftKings,closing pre-kickoff
+1,2026_01_GB_MIN,GB,MIN,105,-125,The Odds Gap / DraftKings,closing pre-kickoff
+1,2026_01_ARI_LAC,ARI,LAC,380,-500,The Odds Gap / DraftKings,closing pre-kickoff
+1,2026_01_WAS_PHI,WAS,PHI,205,-250,The Odds Gap / DraftKings,closing pre-kickoff
+1,2026_01_MIA_LV,MIA,LV,142,-170,The Odds Gap / DraftKings,closing pre-kickoff
+1,2026_01_DAL_NYG,DAL,NYG,-162,136,The Odds Gap / DraftKings,closing pre-kickoff
+1,2026_01_DEN_KC,DEN,KC,120,-142,The Odds Gap / DraftKings,closing pre-kickoff
+2,2026_02_DET_BUF,DET,BUF,210,-238,The Odds Gap,closing pre-kickoff
+2,2026_02_CAR_ATL,CAR,ATL,-140,125,The Odds Gap,closing pre-kickoff
+2,2026_02_CIN_HOU,CIN,HOU,135,-148,The Odds Gap,closing pre-kickoff
+2,2026_02_CLE_TB,CLE,TB,340,-420,The Odds Gap,closing pre-kickoff
+2,2026_02_GB_NYJ,GB,NYJ,-155,154,The Odds Gap,closing pre-kickoff
+2,2026_02_MIN_CHI,MIN,CHI,190,-210,The Odds Gap,closing pre-kickoff
+2,2026_02_NO_BAL,NO,BAL,330,-375,The Odds Gap,closing pre-kickoff
+2,2026_02_PHI_TEN,PHI,TEN,-325,300,The Odds Gap,closing pre-kickoff
+2,2026_02_PIT_NE,PIT,NE,200,-230,The Odds Gap,closing pre-kickoff
+2,2026_02_JAX_DEN,JAX,DEN,127,-140,The Odds Gap,closing pre-kickoff
+2,2026_02_LV_LAC,LV,LAC,260,-300,The Odds Gap,closing pre-kickoff
+2,2026_02_SEA_ARI,SEA,ARI,-209,185,The Odds Gap,closing pre-kickoff
+2,2026_02_WAS_DAL,WAS,DAL,180,-209,The Odds Gap,closing pre-kickoff
+2,2026_02_MIA_SF,MIA,SF,700,-900,The Odds Gap,closing pre-kickoff
+2,2026_02_IND_KC,IND,KC,240,-265,The Odds Gap,closing pre-kickoff
+2,2026_02_NYG_LA,NYG,LA,245,-290,The Odds Gap,closing pre-kickoff
+3,2026_03_ATL_GB,ATL,GB,195,-238,VegasInsider,pre-game
+3,2026_03_LAC_BUF,LAC,BUF,275,-350,FOX/bet365,pre-game
+3,2026_03_CAR_CLE,CAR,CLE,-135,115,FOX/bet365,pre-game
+3,2026_03_NYJ_DET,NYJ,DET,245,-305,FOX/bet365,pre-game
+3,2026_03_HOU_IND,HOU,IND,-125,105,FOX/bet365,pre-game
+3,2026_03_NE_JAX,NE,JAX,125,-150,FOX/bet365,pre-game
+3,2026_03_KC_MIA,KC,MIA,-600,450,FOX/bet365,pre-game
+3,2026_03_TEN_NYG,TEN,NYG,115,-135,FOX/bet365,pre-game
+3,2026_03_CIN_PIT,CIN,PIT,-180,150,FOX/bet365,pre-game
+3,2026_03_SEA_WAS,SEA,WAS,-400,320,FOX/bet365,pre-game
+3,2026_03_ARI_SF,ARI,SF,300,-380,FOX/bet365,pre-game
+3,2026_03_MIN_TB,MIN,TB,-115,-105,FOX/bet365,pre-game
+3,2026_03_BAL_DAL,BAL,DAL,-180,150,FOX/bet365,pre-game
+3,2026_03_LV_NO,LV,NO,155,-185,FOX/bet365,pre-game
+3,2026_03_LA_DEN,LA,DEN,-130,110,FOX/bet365,pre-game
+3,2026_03_PHI_CHI,PHI,CHI,-185,155,FOX/bet365,pre-game
