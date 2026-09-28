@@ -1,4 +1,4 @@
-name: Refresh SPATS database
+name: SPATS Research Rebuild
 on:
   workflow_dispatch:
     inputs:
@@ -6,23 +6,13 @@ on:
         description: First season
         required: false
         default: "1999"
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/refresh.yml"
-      - "scripts/**"
-      - "src/**"
-      - "config/**"
-      - "requirements.txt"
-  schedule:
-    - cron: "45 10 * 9-12,1-2 2,5"
 permissions:
   contents: write
 concurrency:
-  group: spats-refresh-main
-  cancel-in-progress: true
+  group: spats-research
+  cancel-in-progress: false
 jobs:
-  refresh:
+  research:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -32,21 +22,19 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
-      - name: Build
+      - name: Build historical database
         run: python scripts/build_database.py --start ${{ inputs.start || '1999' }} --end 2026
-      - run: python scripts/validate_database.py
-      - run: python scripts/train_baselines.py
-      - name: Optimize winner statistics and weights
+      - name: Validate historical database
+        run: python scripts/validate_database.py
+      - name: Train research baselines
+        run: python scripts/train_baselines.py
+      - name: Optimize research model
         run: python scripts/optimize_winner_model.py
-      - name: Predict 2026 Week 3
-        run: python scripts/predict_week3_2026.py
-      - name: Backtest 2026 season-to-date
-        run: python scripts/backtest_2026_season.py
-      - name: Commit compact reports
+      - name: Commit research reports
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add reports/
-          git diff --cached --quiet || git commit -m "Refresh SPATS coverage and backtests"
+          git diff --cached --quiet || git commit -m "Refresh SPATS research reports"
           git pull --rebase origin main
           git push
