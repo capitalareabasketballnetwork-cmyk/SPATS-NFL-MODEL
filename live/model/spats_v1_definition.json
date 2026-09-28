@@ -1,0 +1,31 @@
+{
+  "model_version": "SPATS_V1",
+  "status": "frozen",
+  "features": [
+    "total_epa_l8",
+    "def_pass_epa_l8",
+    "success_rate_ewm",
+    "sack_rate_l5",
+    "cpoe_l8",
+    "success_rate_l8",
+    "wp_added_l5",
+    "def_turnovers_per_drive_ewm",
+    "def_turnovers_per_drive_l8",
+    "explosive_pass_rate_l8",
+    "success_rate_l5"
+  ],
+  "C": 0.05,
+  "weights_pct": {
+    "def_pass_epa_l8_diff": 21.331803697807526,
+    "total_epa_l8_diff": 16.737363558610472,
+    "success_rate_l8_diff": 12.664566947307796,
+    "success_rate_ewm_diff": 9.801319382192112,
+    "wp_added_l5_diff": 7.573027116329258,
+    "sack_rate_l5_diff": 7.432024150260344,
+    "def_turnovers_per_drive_ewm_diff": 6.535669623032687,
+    "def_turnovers_per_drive_l8_diff": 5.2894906124927425,
+    "success_rate_l5_diff": 5.257289898569863,
+    "cpoe_l8_diff": 3.946773209135629,
+    "explosive_pass_rate_l8_diff": 3.430671804261588
+  }
+}
