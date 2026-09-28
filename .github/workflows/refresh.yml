@@ -40,6 +40,8 @@ jobs:
         run: python scripts/optimize_winner_model.py
       - name: Predict 2026 Week 3
         run: python scripts/predict_week3_2026.py
+      - name: Backtest 2026 season-to-date
+        run: python scripts/backtest_2026_season.py
       - name: Commit compact reports
         run: |
           git config user.name "github-actions[bot]"
