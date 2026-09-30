@@ -80,13 +80,17 @@ for k in options:
     st.session_state.setdefault(f"use_{k}",k in st.session_state.selected_stats)
     st.session_state.setdefault(f"dir_{k}","Higher is better" if default_dir(k)>0 else "Lower is better")
 
-def randomize():
-    n=random.randint(3,min(8,len(options))); picks=random.sample(options,n); st.session_state.selected_stats=picks
+def _randomize_from(pool):
+    if not pool: return
+    n=random.randint(min(3,len(pool)),min(8,len(pool))); picks=random.sample(pool,n); st.session_state.selected_stats=picks
     vals=np.random.dirichlet(np.ones(n))
     rounded=[round(float(v),3) for v in vals]
     rounded[-1]=round(1.0-sum(rounded[:-1]),3)
     for k in options: st.session_state[f"use_{k}"]=k in picks
     for k,v in zip(picks,rounded): st.session_state[f"w_{k}"]=v
+
+def randomize(): _randomize_from(options)
+def randomize_common(): _randomize_from(common_options)
 
 def apply_weights(changes):
     for k,w in changes.items():
@@ -147,7 +151,7 @@ def accuracy_color(p):
 
 with builder:
     st.subheader("Model Builder")
-    c1,c2=st.columns([5,1])
+    c1,c2,c3=st.columns([5,1.15,1.55])
     with c1:
         chosen=st.multiselect("Add statistics to your model",dropdown_options,default=[x for x in st.session_state.selected_stats if x in options],format_func=dropdown_label,placeholder="Choose a statistic…")
         st.caption("🔵 = common stat")
@@ -156,7 +160,9 @@ with builder:
             for k in options: st.session_state[f"use_{k}"]=k in chosen
             st.rerun()
     with c2:
-        st.write(""); st.write(""); st.button("🎲 Randomize",use_container_width=True,on_click=randomize)
+        st.write(""); st.write(""); st.button("🎲 Randomize",use_container_width=True,on_click=randomize,help="Randomize from all available statistics.")
+    with c3:
+        st.write(""); st.write(""); st.button("🔵 Randomize Common",use_container_width=True,on_click=randomize_common,help="Randomize using only common statistics.")
     st.caption(f"{len(options)} usable statistics are currently available in the permanent web dataset. Add only the ones you want, then edit their weights.")
     if not st.session_state.selected_stats: st.info("Add at least one statistic from the dropdown above.")
     for k in list(st.session_state.selected_stats):
