@@ -78,7 +78,7 @@ def initial_stats():
         col=cfg_col(k)
         if v.get("enabled") and col in options and col not in out: out.append(col)
     return out or options[:min(6,len(options))]
-if "selected_stats" not in st.session_state: st.session_state.selected_stats=initial_stats()
+if "selected_stats" not in st.session_state: st.session_state.selected_stats=[]
 for k in options:
     st.session_state.setdefault(f"w_{k}",float(next((v.get("weight",5) for ck,v in cfg.get("stats",{}).items() if cfg_col(ck)==k),5)))
     st.session_state.setdefault(f"use_{k}",k in st.session_state.selected_stats)
@@ -153,7 +153,11 @@ with builder:
     st.subheader("Model Builder")
     c1,c2=st.columns([5,1])
     with c1:
-        chosen=st.multiselect("Add statistics to your model",options,default=[x for x in st.session_state.selected_stats if x in options],format_func=label,placeholder="Choose from every statistic available in the Model Lab dataset…")
+        chosen_raw=st.multiselect("Add statistics to your model",dropdown_options,default=[x for x in st.session_state.selected_stats if x in options],format_func=dropdown_label,placeholder="Choose from common stats first, or browse all available statistics…")
+        chosen=[x for x in chosen_raw if x in options]
+        if chosen_raw!=chosen:
+            st.session_state.selected_stats=chosen
+            st.rerun()
         if chosen!=st.session_state.selected_stats:
             st.session_state.selected_stats=chosen
             for k in options: st.session_state[f"use_{k}"]=k in chosen
