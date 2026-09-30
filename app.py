@@ -60,9 +60,11 @@ for k in options:
 
 def randomize():
     n=random.randint(3,min(8,len(options))); picks=random.sample(options,n); st.session_state.selected_stats=picks
-    vals=np.random.dirichlet(np.ones(n))*100
+    vals=np.random.dirichlet(np.ones(n))
+    rounded=[round(float(v),3) for v in vals]
+    rounded[-1]=round(1.0-sum(rounded[:-1]),3)
     for k in options: st.session_state[f"use_{k}"]=k in picks
-    for k,v in zip(picks,vals): st.session_state[f"w_{k}"]=round(float(v),1)
+    for k,v in zip(picks,rounded): st.session_state[f"w_{k}"]=v
 
 def apply_weights(changes):
     for k,w in changes.items():
@@ -82,7 +84,7 @@ def active_from_state():
     a={}
     for k in st.session_state.selected_stats:
         if k in options and st.session_state.get(f"use_{k}",True) and st.session_state.get(f"w_{k}",0)>0:
-            a[k]={"weight":float(st.session_state[f"w_{k}"]),"direction":1 if st.session_state.get(f"dir_{k}")=="Higher is better" else -1}
+            a[k]={"weight":float(st.session_state[f"w_{k}"]),"direction":default_dir(k)}
     return a
 
 def build_team_ratings(active):
@@ -130,14 +132,15 @@ with builder:
     st.caption(f"{len(options)} usable statistics are currently available in the permanent web dataset. Add only the ones you want, then edit their weights.")
     if not st.session_state.selected_stats: st.info("Add at least one statistic from the dropdown above.")
     for k in list(st.session_state.selected_stats):
-        a,b,c,d=st.columns([.7,4,2,2.2])
+        a,b,c=st.columns([.7,5,2])
         with a: st.checkbox("Use",key=f"use_{k}",label_visibility="collapsed")
         with b: st.markdown(f"**{label(k)}**")
-        with c: st.number_input("Weight",0.0,100.0,step=.5,key=f"w_{k}",label_visibility="collapsed")
-        with d: st.selectbox("Direction",["Higher is better","Lower is better"],key=f"dir_{k}",label_visibility="collapsed")
+        with c: st.number_input("Weight",0.0,1.0,step=.01,format="%.3f",key=f"w_{k}",label_visibility="collapsed")
     active=active_from_state(); total=sum(v["weight"] for v in active.values())
     if not active or start>end:
         st.warning("Enable at least one statistic with a positive weight and choose a valid season range.")
+    elif abs(total-1.0)>0.0005:
+        st.error(f"⚠️ Make sure your active weights add up to **1.00**. Current total: **{total:.3f}**")
     else:
         try:
             results,summary=run_backtest(int(start),int(end),active); n=len(results); wins=int(results.correct.sum()); acc=wins/n if n else 0; pct=acc*100
@@ -175,7 +178,16 @@ with builder:
             st.subheader("Normalized Weights")
             norm=pd.DataFrame([{"Statistic":label(k),"Weight":v["weight"],"Model Weight %":v["weight"]/total*100,"Direction":"Higher" if v["direction"]>0 else "Lower"} for k,v in active.items()])
             st.dataframe(norm,use_container_width=True,hide_index=True,column_config={"Model Weight %":st.column_config.NumberColumn(format="%.2f%%")})
-            st.subheader("Season Results"); ch=summary.copy(); ch["accuracy"]*=100; st.bar_chart(ch.set_index("season")["accuracy"],y_label="Accuracy %")
+            st.subheader("Season Results")
+            ch=summary.copy(); ch["accuracy"]*=100
+            ch["Result"]=ch.apply(lambda r:f'{int(r["season"])}: {r["accuracy"]:.1f}%  ({int(r["wins"])}–{int(r["games"]-r["wins"])})',axis=1)
+            def season_style(v):
+                try:
+                    p=float(v.split(": ")[1].split("%")[0])
+                    color="#126b2f" if p>=60 else ("#2f9e44" if p>=57 else ("#d98b00" if p>=54 else "#8b1111"))
+                    return f"color: {color}; font-weight: 800"
+                except: return ""
+            st.dataframe(ch[["Result"]].style.map(season_style),use_container_width=True,hide_index=True)
         except Exception as e:
             st.error(f"Model could not be calculated: {e}")
 
