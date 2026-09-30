@@ -30,17 +30,33 @@ jobs:
         run: python scripts/export_model_lab_web_data.py
       - name: Commit compact dataset
         run: |
+          # Preserve only the two permanent website datasets. The historical
+          # database build is a one-time source step, not something Streamlit reruns.
+          mkdir -p /tmp/model-lab-web
+          cp data/web/model_lab_team_games.csv.gz /tmp/model-lab-web/
+          cp data/web/model_lab_games.csv.gz /tmp/model-lab-web/
+
+          # Reset all temporary/raw/curated files created by the build so they
+          # cannot be duplicated or accidentally committed.
+          git reset --hard HEAD
+          git clean -fd
+
+          # Move to the newest main in case another website commit landed while
+          # the one-time data build was running.
+          git fetch origin main
+          git reset --hard origin/main
+
+          mkdir -p data/web
+          cp /tmp/model-lab-web/model_lab_team_games.csv.gz data/web/
+          cp /tmp/model-lab-web/model_lab_games.csv.gz data/web/
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -f data/web/model_lab_team_games.csv.gz data/web/model_lab_games.csv.gz
+
           if git diff --cached --quiet; then
-            echo "Web dataset is already current."
+            echo "Permanent website dataset is already current."
           else
-            git commit -m "Update Model Lab web dataset"
-            git stash --include-untracked
-            git pull --rebase origin main
-            git stash pop
-            git add -f data/web/model_lab_team_games.csv.gz data/web/model_lab_games.csv.gz
-            git commit --amend --no-edit
+            git commit -m "Store permanent Model Lab dataset"
             git push origin HEAD:main
           fi
