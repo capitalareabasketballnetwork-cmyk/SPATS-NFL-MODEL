@@ -138,6 +138,45 @@ else:
 
         st.caption("Results update automatically whenever you change a statistic, weight, or season range.")
 
+        @st.cache_data(show_spinner=False)
+        def weight_suggestions(start_season,end_season,active_items):
+            base_active={k:{**dict(v)} for k,v in active_items}
+            base_results,_=run_backtest(start_season,end_season,base_active)
+            base_acc=float(base_results["correct"].mean()) if len(base_results) else 0.0
+            tests=[]
+            # Quick local sensitivity search: test a modest increase/decrease for
+            # each active statistic while all other weights stay fixed.
+            for key,spec in base_active.items():
+                original=float(spec["weight"])
+                step=max(1.0,original*0.10)
+                for direction,trial in [("Increase",original+step),("Decrease",max(0.1,original-step))]:
+                    candidate={k:{**dict(v)} for k,v in base_active.items()}
+                    candidate[key]["weight"]=trial
+                    r,_=run_backtest(start_season,end_season,candidate)
+                    trial_acc=float(r["correct"].mean()) if len(r) else 0.0
+                    tests.append({
+                        "Statistic":LABELS.get(key,key),
+                        "Change":f"{direction} {original:.1f} → {trial:.1f}",
+                        "Accuracy":trial_acc*100,
+                        "Improvement":(trial_acc-base_acc)*100,
+                    })
+            return pd.DataFrame(tests).sort_values("Improvement",ascending=False)
+
+        st.subheader("Model Improvement Suggestions")
+        st.caption("Quick sensitivity test: SPATS nudges each active weight up and down and checks whether historical accuracy improves. These are in-sample clues, not guarantees of future performance.")
+        suggestion_df=weight_suggestions(int(start),int(end),tuple((k,tuple(sorted(v.items()))) for k,v in active.items()))
+        if not suggestion_df.empty and suggestion_df.iloc[0]["Improvement"]>0:
+            top=suggestion_df[suggestion_df["Improvement"]>0].head(5).copy()
+            for _,row in top.iterrows():
+                st.success(f'**{row["Statistic"]}:** {row["Change"]}  →  {row["Accuracy"]:.2f}% accuracy (**+{row["Improvement"]:.2f} pts**)')
+            with st.expander("See all weight tests"):
+                st.dataframe(suggestion_df,use_container_width=True,hide_index=True,column_config={
+                    "Accuracy":st.column_config.NumberColumn(format="%.2f%%"),
+                    "Improvement":st.column_config.NumberColumn(format="%+.2f pts"),
+                })
+        else:
+            st.info("No single small weight adjustment improved accuracy in this quick test.")
+
         st.subheader("Normalized Weights")
         norm=pd.DataFrame([
             {
