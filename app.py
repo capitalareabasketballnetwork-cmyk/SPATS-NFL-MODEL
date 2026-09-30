@@ -114,7 +114,19 @@ with st.sidebar:
     start=st.number_input("Start season",lo,hi,max(lo,int(cfg.get("seasons",{}).get("start",lo))))
     end=st.number_input("End season",lo,hi,hi)
 
-builder,weekly=st.tabs(["🧪 Model Lab","📅 Week Explorer"])
+builder,weekly,saved_page=st.tabs(["🧪 Model Lab","📅 Week Explorer","💾 Saved Models"])
+
+st.session_state.setdefault("saved_models",{})
+
+def load_saved_model(model):
+    chosen=[k for k in model.get("stats",{}) if k in options]
+    st.session_state.selected_stats=chosen
+    for k in options:
+        st.session_state[f"use_{k}"]=k in chosen
+    for k,spec in model.get("stats",{}).items():
+        if k in options:
+            st.session_state[f"w_{k}"]=float(spec.get("weight",0))
+    st.session_state["_loaded_model_name"]=model.get("name","Saved Model")
 
 def active_from_state():
     a={}
@@ -197,6 +209,18 @@ with builder:
             bg,txt,status=accuracy_color(pct); st.divider(); st.subheader("Live Model Results")
             st.markdown(f'<div style="background:{bg};border-radius:18px;padding:22px;text-align:center"><div style="font-size:15px;font-weight:800">OVERALL BACKTEST ACCURACY</div><div style="font-size:68px;font-weight:900;color:{txt};line-height:1.05">{pct:.2f}%</div><div style="font-size:18px;font-weight:800">{status}</div></div>',unsafe_allow_html=True)
             x,y,z=st.columns(3); x.metric("Record",f"{wins:,}–{n-wins:,}"); y.metric("Games Tested",f"{n:,}"); z.metric("Active Stats",len(active))
+
+            st.subheader("Save Model")
+            save_name=st.text_input("Model name",placeholder="e.g. Week 4 Efficiency Model",key="save_model_name")
+            if st.button("💾 Save Model",type="primary",disabled=not bool(save_name.strip())):
+                name=save_name.strip()
+                st.session_state.saved_models[name]={
+                    "name":name,
+                    "stats":{k:{"weight":float(v["weight"]),"direction":int(v["direction"])} for k,v in active.items()},
+                    "accuracy":float(pct),"record":f"{wins}–{n-wins}","games":int(n),
+                    "start_season":int(start),"end_season":int(end)
+                }
+                st.success(f'Saved **{name}**. You can reopen it from the Saved Models page.')
 
             consistency=max(0,1-float(summary.accuracy.std(ddof=0) if len(summary)>1 else 0))
             rating=float(np.clip(1+((pct-48)/17)*8 + min(n,2000)/2000*.5 + (consistency-.9)*1.5,1,10)); col=score_color(rating)
@@ -306,3 +330,27 @@ with weekly:
             else:
                 detail=f" · Edge {abs(edge):.2f}" if pd.notna(edge) else " · Waiting for enough prior data"
                 st.markdown(f'<div style="border:1px solid #555;border-radius:14px;padding:14px;margin:8px 0"><b>{g.away_team} @ {g.home_team}</b><br>Model pick: <b>{pick}</b>{detail}</div>',unsafe_allow_html=True)
+
+
+with saved_page:
+    st.subheader("💾 Saved Models")
+    st.caption("Models you save in Model Lab appear here. Load one to continue editing or testing it.")
+    if not st.session_state.saved_models:
+        st.info("You haven't saved any models yet. Build a model in Model Lab, give it a name, and press Save Model.")
+    else:
+        for name,model in list(st.session_state.saved_models.items()):
+            with st.container(border=True):
+                h1,h2,h3,h4=st.columns([3,1.2,1.2,1.5])
+                h1.markdown(f"### {name}")
+                h2.metric("Accuracy",f'{model.get("accuracy",0):.2f}%')
+                h3.metric("Stats",len(model.get("stats",{})))
+                h4.metric("Record",model.get("record","—"))
+                st.caption(f'Backtest: {model.get("start_season","—")}–{model.get("end_season","—")} · {model.get("games",0):,} games')
+                st.markdown(" · ".join(f'**{label(k)}** {float(v.get("weight",0)):.3f}' for k,v in model.get("stats",{}).items()))
+                b1,b2=st.columns([1,5])
+                if b1.button("📂 Load",key=f"load_saved_{name}",use_container_width=True):
+                    load_saved_model(model)
+                    st.success(f'Loaded **{name}** into Model Lab. Open the Model Lab tab to continue working on it.')
+                if b2.button("🗑️ Delete",key=f"delete_saved_{name}"):
+                    del st.session_state.saved_models[name]
+                    st.rerun()
