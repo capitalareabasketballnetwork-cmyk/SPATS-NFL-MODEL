@@ -1,0 +1,22 @@
+{
+  "name": "WMU Club Representative Model V1",
+  "seasons": {"start": 2015, "end": 2026},
+  "normalize_weights": true,
+  "minimum_prior_games": 1,
+  "stats": {
+    "point_differential_per_game": {"enabled": true, "weight": 20, "direction": 1},
+    "offensive_epa_per_play": {"enabled": true, "weight": 15, "direction": 1},
+    "defensive_success_rate": {"enabled": true, "weight": 15, "direction": -1},
+    "third_down_conversion_rate": {"enabled": true, "weight": 10, "direction": 1},
+    "yards_per_play": {"enabled": true, "weight": 8, "direction": 1},
+    "turnover_margin_per_game": {"enabled": true, "weight": 8, "direction": 1},
+    "qbr": {"enabled": false, "weight": 8, "direction": 1},
+    "yards_per_game": {"enabled": true, "weight": 5, "direction": 1},
+    "time_of_possession_seconds": {"enabled": true, "weight": 4, "direction": 1},
+    "fourth_down_conversion_rate": {"enabled": true, "weight": 3, "direction": 1},
+    "penalty_yards_per_game": {"enabled": true, "weight": 2, "direction": -1},
+    "penalties_per_game": {"enabled": true, "weight": 2, "direction": -1},
+    "strength_of_schedule": {"enabled": false, "weight": 0, "direction": 1},
+    "strength_of_record": {"enabled": false, "weight": 0, "direction": 1}
+  }
+}
