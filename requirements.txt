@@ -5,3 +5,4 @@ requests>=2.32
 scikit-learn>=1.5
 joblib>=1.4
 tqdm>=4.66
+streamlit>=1.39,<2
