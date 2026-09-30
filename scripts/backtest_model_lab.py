@@ -60,10 +60,18 @@ def main():
         tg[pc]=tg.groupby("team")[c].transform(lambda x:x.shift(1).expanding().mean())
         feature_cols[key]=pc
     if missing:
-        print("Unavailable stats skipped:",", ".join(missing))
+        raise RuntimeError(
+            "MODEL LAB STOPPED: enabled stats are missing from team_game_derived.parquet: "
+            + ", ".join(missing)
+            + ". No partial-model result will be produced."
+        )
     if not feature_cols: raise RuntimeError("No enabled stats are available in team_game_derived.parquet")
 
     usable={k:active[k] for k in feature_cols}
+    expected_weight=sum(abs(float(v["weight"])) for v in active.values())
+    used_weight=sum(abs(float(usable[k]["weight"])) for k in usable)
+    if len(usable) != len(active) or abs(used_weight-expected_weight) > 1e-9:
+        raise RuntimeError(f"MODEL LAB STOPPED: expected {len(active)} enabled stats / weight {expected_weight}, got {len(usable)} / {used_weight}.")
     denom=sum(abs(float(v["weight"])) for v in usable.values()) if cfg.get("normalize_weights",True) else 100.0
     tg["rating"]=0.0
     for key,spec in usable.items():
