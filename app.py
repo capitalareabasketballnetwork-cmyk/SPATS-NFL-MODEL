@@ -135,7 +135,7 @@ with builder:
         a,b,c=st.columns([.7,5,2])
         with a: st.checkbox("Use",key=f"use_{k}",label_visibility="collapsed")
         with b: st.markdown(f"**{label(k)}**")
-        with c: st.number_input("Weight",0.0,1.0,step=.01,format="%.3f",key=f"w_{k}",label_visibility="collapsed")
+        with c: st.number_input("Weight",0.0,1.0,step=.001,format="%.3f",key=f"w_{k}",label_visibility="collapsed")
     active=active_from_state(); total=sum(v["weight"] for v in active.values())
     if not active or start>end:
         st.warning("Enable at least one statistic with a positive weight and choose a valid season range.")
@@ -158,19 +158,48 @@ with builder:
 
             st.subheader("🧠 Model Coach")
             st.caption("Tests nearby weight changes against the selected historical range. Improvements are in-sample clues, so a higher backtest number is not guaranteed to improve future picks.")
+            def rebalance_candidate(base_weights,target,new_weight):
+                # Change one stat while keeping the complete model at exactly 1.00.
+                # The offset is spread proportionally across every other active stat,
+                # preserving their relative importance.
+                out={k:max(0.0,float(v["weight"])) for k,v in base_weights.items()}
+                if target not in out or len(out)==1:
+                    out[target]=1.0
+                    return out
+                new_weight=float(np.clip(new_weight,0.0,1.0))
+                others=[k for k in out if k!=target]
+                other_total=sum(out[k] for k in others)
+                remainder=1.0-new_weight
+                if other_total>0:
+                    for k in others: out[k]=out[k]/other_total*remainder
+                else:
+                    for k in others: out[k]=remainder/len(others)
+                out[target]=new_weight
+                return out
+
             base=acc; trials=[]
             for k,s in active.items():
                 ow=s["weight"]
-                for mult,name in [(1.25,"Increase 25%"),(1.10,"Increase 10%"),(.90,"Decrease 10%"),(.75,"Decrease 25%"),(.05,"Nearly remove")]:
-                    cand={a:dict(v) for a,v in active.items()}; cand[k]["weight"]=max(.1,ow*mult); ca,_=accuracy_of(cand)
-                    trials.append((ca-base,k,cand[k]["weight"],name,ca))
+                # Absolute weight-point moves are easier to understand and every
+                # candidate is rebalanced before it is backtested.
+                for delta in (.100,.050,.025,.010,-.010,-.025,-.050,-.100):
+                    nw=float(np.clip(ow+delta,0.0,1.0))
+                    if abs(nw-ow)<1e-9: continue
+                    weights=rebalance_candidate(active,k,nw)
+                    cand={a:{**dict(v),"weight":weights[a]} for a,v in active.items()}
+                    ca,_=accuracy_of(cand)
+                    trials.append((ca-base,k,nw,delta,ca,weights))
             trials.sort(reverse=True,key=lambda x:x[0]); good=[t for t in trials if t[0]>0][:5]
-            suggested={k:v["weight"] for k,v in active.items()}; used=set()
-            for imp,k,w,name,ca in good:
-                if k not in used: suggested[k]=w; used.add(k)
+            suggested={k:v["weight"] for k,v in active.items()}
             if good:
-                for imp,k,w,name,ca in good: st.success(f'**{label(k)}:** {name} → weight **{w:.1f}** | {ca*100:.2f}% (**+{imp*100:.2f} pts**)')
-                st.button("✨ Apply suggested weights",type="primary",on_click=apply_weights,args=(suggested,))
+                # Apply the single best complete rebalanced model, rather than
+                # stacking independent suggestions that could conflict.
+                best=good[0]; suggested=best[5]
+                for imp,k,w,delta,ca,weights in good:
+                    verb="Increase" if delta>0 else "Decrease"
+                    st.success(f'**{label(k)}:** {verb} by **{abs(delta):.3f}** → **{w:.3f}** | complete rebalanced model: {ca*100:.2f}% (**+{imp*100:.2f} pts**)')
+                st.caption("Each suggestion is tested as a complete 1.000-weight model. When one weight rises, the required amount is removed proportionally from the other active statistics; when it falls, that amount is redistributed proportionally.")
+                st.button("✨ Apply best suggested model",type="primary",on_click=apply_weights,args=(suggested,))
             else:
                 st.info("No nearby single-weight adjustment improved this backtest. Try Randomize, a different stat mix, or validate a different season range.")
             st.caption("Why models often stall near 59%: NFL outcomes contain injuries, turnovers, weather, matchup effects and randomness that season averages cannot fully capture. Better gains are more likely from stronger features and recency/matchup modeling than endlessly tuning the same weights.")
