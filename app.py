@@ -7,9 +7,10 @@ ROOT=Path(__file__).resolve().parent
 CFG=ROOT/"config/model_lab.json"
 SUMMARY=ROOT/"reports/model_lab_summary.csv"
 RESULTS=ROOT/"reports/model_lab_results.csv"
-COVERAGE=ROOT/"reports/coverage.csv"
 TEAM_GAME=ROOT/"data/curated/team_game_derived.parquet"
 GAMES=ROOT/"data/curated/games.parquet"
+WEB_TEAM_GAME=ROOT/"data/web/model_lab_team_games.csv.gz"
+WEB_GAMES=ROOT/"data/web/model_lab_games.csv.gz"
 
 LABELS={
 "point_differential_per_game":"Point Differential",
@@ -35,8 +36,8 @@ st.caption("Build, weight, and backtest NFL prediction models using the SPATS da
 cfg=json.loads(CFG.read_text())
 with st.sidebar:
     st.header("Backtest range")
-    start=st.number_input("Start season",1999,2026,int(cfg["seasons"]["start"]))
-    end=st.number_input("End season",1999,2026,int(cfg["seasons"]["end"]))
+    start=st.number_input("Start season",2015,2026,max(2015,int(cfg["seasons"]["start"])))
+    end=st.number_input("End season",2015,2026,max(2015,int(cfg["seasons"]["end"])))
     if start>end: st.error("Start season must be before end season.")
 
 st.subheader("Model Builder")
@@ -59,35 +60,20 @@ c2.metric("Raw weight total",f"{weight_total:.1f}")
 c3.metric("Normalization","Automatic")
 if weight_total<=0: st.warning("Enable at least one statistic with a positive weight.")
 
-def data_covers(start_season,end_season):
-    if not (TEAM_GAME.exists() and GAMES.exists() and COVERAGE.exists()):
+def prepare_compact_data():
+    """Materialize the small committed web dataset into the paths used by Model Lab."""
+    if not (WEB_TEAM_GAME.exists() and WEB_GAMES.exists()):
         return False
-    try:
-        cov=pd.read_csv(COVERAGE)
-        row=cov[cov["dataset"]=="team_game_derived"]
-        if row.empty: return False
-        lo=int(row.iloc[0]["min_season"]); hi=int(row.iloc[0]["max_season"])
-        return lo<=start_season and hi>=end_season
-    except Exception:
-        return False
-
-def prepare_data(start_season,end_season):
-    cmd=[sys.executable,str(ROOT/"scripts/build_database.py"),"--start",str(start_season),"--end",str(end_season)]
-    return subprocess.run(cmd,cwd=ROOT,text=True,capture_output=True)
+    TEAM_GAME.parent.mkdir(parents=True,exist_ok=True)
+    pd.read_csv(WEB_TEAM_GAME,compression="gzip").to_parquet(TEAM_GAME,index=False)
+    pd.read_csv(WEB_GAMES,compression="gzip").to_parquet(GAMES,index=False)
+    return True
 
 run=st.button("Run Backtest",type="primary",disabled=(start>end or weight_total<=0),use_container_width=True)
 if run:
-    if not data_covers(int(start),int(end)):
-        with st.spinner(f"Preparing SPATS data for {int(start)}–{int(end)}. The first run can take several minutes..."):
-            build=prepare_data(int(start),int(end))
-        if build.returncode:
-            st.error("SPATS could not prepare the historical database.")
-            st.code((build.stdout+"\n"+build.stderr)[-5000:])
-            st.stop()
-        if not data_covers(int(start),int(end)):
-            st.error("Database preparation finished, but the requested season range was not created correctly.")
-            st.stop()
-        st.success("SPATS historical data is ready.")
+    if not prepare_compact_data():
+        st.error("The compact Model Lab dataset is still being prepared by GitHub Actions. Please try again in a few minutes.")
+        st.stop()
     new_cfg={**cfg,"seasons":{"start":int(start),"end":int(end)}}
     new_cfg["stats"]={**cfg["stats"],**edited}
     new_cfg["stats"]["qbr"]={**cfg["stats"].get("qbr",{}),"enabled":False,"weight":0}
