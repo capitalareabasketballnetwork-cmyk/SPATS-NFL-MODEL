@@ -6,6 +6,7 @@ on:
   push:
     paths:
       - ".github/workflows/build-model-lab-web-data.yml"
+      - "scripts/export_model_lab_web_data.py"
 
 permissions:
   contents: write
