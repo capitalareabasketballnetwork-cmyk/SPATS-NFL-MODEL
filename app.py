@@ -47,7 +47,28 @@ games["game_date"]=pd.to_datetime(games.get("game_date"),errors="coerce")
 numeric=[c for c in tg.columns if c not in ID_COLS and pd.api.types.is_numeric_dtype(tg[c]) and tg[c].notna().sum()>20 and tg[c].nunique(dropna=True)>1]
 for dup,primary in [("third_down_rate","third_down_conversion_rate"),("fourth_down_rate","fourth_down_conversion_rate")]:
     if dup in numeric and primary in numeric: numeric.remove(dup)
-options=sorted(numeric,key=lambda x:label(x))
+COMMON_BASES=[
+    "point_differential_per_game","epa_per_play","success_rate","def_epa_per_play",
+    "def_success_rate","pass_epa","rush_epa","yards_per_play",
+    "third_down_conversion_rate","fourth_down_conversion_rate",
+    "turnover_margin_per_game","explosive_pass_rate","explosive_rush_rate",
+    "red_zone_td_rate","sack_rate","qb_hit_rate","completion_rate","cpoe",
+    "yards_per_game","penalty_yards_per_game","penalties_per_game"
+]
+def feature_base(k):
+    for s in ("_l3","_l5","_l8","_ewm"):
+        if k.endswith(s): return k[:-len(s)]
+    return k
+common_options=sorted([x for x in numeric if feature_base(x) in COMMON_BASES],key=lambda x:(COMMON_BASES.index(feature_base(x)),label(x)))
+other_options=sorted([x for x in numeric if x not in common_options],key=lambda x:label(x))
+options=common_options+other_options
+COMMON_MARK="──────── ★ COMMON STATS ────────"
+ALL_MARK="──────── ALL OTHER STATS ────────"
+dropdown_options=[COMMON_MARK]+common_options+[ALL_MARK]+other_options
+def dropdown_label(k):
+    if k==COMMON_MARK: return "🔷  COMMON STATS"
+    if k==ALL_MARK: return "ALL OTHER STATS"
+    return ("🔹 " if k in common_options else "")+label(k)
 
 cfg=json.loads(CFG.read_text()) if CFG.exists() else {"seasons":{"start":2015,"end":2026},"stats":{}}
 def cfg_col(k): return {"offensive_epa_per_play":"epa_per_play","defensive_success_rate":"def_success_rate"}.get(k,k)
