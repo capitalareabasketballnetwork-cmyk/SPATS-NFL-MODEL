@@ -7,6 +7,9 @@ ROOT=Path(__file__).resolve().parent
 CFG=ROOT/"config/model_lab.json"
 SUMMARY=ROOT/"reports/model_lab_summary.csv"
 RESULTS=ROOT/"reports/model_lab_results.csv"
+COVERAGE=ROOT/"reports/coverage.csv"
+TEAM_GAME=ROOT/"data/curated/team_game_derived.parquet"
+GAMES=ROOT/"data/curated/games.parquet"
 
 LABELS={
 "point_differential_per_game":"Point Differential",
@@ -56,8 +59,35 @@ c2.metric("Raw weight total",f"{weight_total:.1f}")
 c3.metric("Normalization","Automatic")
 if weight_total<=0: st.warning("Enable at least one statistic with a positive weight.")
 
+def data_covers(start_season,end_season):
+    if not (TEAM_GAME.exists() and GAMES.exists() and COVERAGE.exists()):
+        return False
+    try:
+        cov=pd.read_csv(COVERAGE)
+        row=cov[cov["dataset"]=="team_game_derived"]
+        if row.empty: return False
+        lo=int(row.iloc[0]["min_season"]); hi=int(row.iloc[0]["max_season"])
+        return lo<=start_season and hi>=end_season
+    except Exception:
+        return False
+
+def prepare_data(start_season,end_season):
+    cmd=[sys.executable,str(ROOT/"scripts/build_database.py"),"--start",str(start_season),"--end",str(end_season)]
+    return subprocess.run(cmd,cwd=ROOT,text=True,capture_output=True)
+
 run=st.button("Run Backtest",type="primary",disabled=(start>end or weight_total<=0),use_container_width=True)
 if run:
+    if not data_covers(int(start),int(end)):
+        with st.spinner(f"Preparing SPATS data for {int(start)}–{int(end)}. The first run can take several minutes..."):
+            build=prepare_data(int(start),int(end))
+        if build.returncode:
+            st.error("SPATS could not prepare the historical database.")
+            st.code((build.stdout+"\n"+build.stderr)[-5000:])
+            st.stop()
+        if not data_covers(int(start),int(end)):
+            st.error("Database preparation finished, but the requested season range was not created correctly.")
+            st.stop()
+        st.success("SPATS historical data is ready.")
     new_cfg={**cfg,"seasons":{"start":int(start),"end":int(end)}}
     new_cfg["stats"]={**cfg["stats"],**edited}
     new_cfg["stats"]["qbr"]={**cfg["stats"].get("qbr",{}),"enabled":False,"weight":0}
