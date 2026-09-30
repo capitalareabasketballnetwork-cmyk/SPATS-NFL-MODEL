@@ -21,7 +21,12 @@ KNOWN_LABELS={
 KNOWN_DIR={"def_success_rate":-1,"defensive_success_rate":-1,"penalty_yards_per_game":-1,"penalties_per_game":-1}
 ID_COLS={"game_id","season","week","game_date","team","home_team","away_team","home_margin","home_score","away_score","result","location"}
 
-def label(k): return KNOWN_LABELS.get(k,k.replace("_"," ").replace(" pct"," %").title())
+def label(k):
+    suffix=""
+    base=k
+    for token,name in [("_l3"," · Last 3"),("_l5"," · Last 5"),("_l8"," · Last 8"),("_ewm"," · Recent EWM")]:
+        if k.endswith(token): base=k[:-len(token)]; suffix=name; break
+    return KNOWN_LABELS.get(base,base.replace("_"," ").replace(" pct"," %").title())+suffix
 def default_dir(k):
     if k in KNOWN_DIR: return KNOWN_DIR[k]
     bad=("allowed","against","penalt","interception","sack_allowed","pressure_allowed","turnover_rate")
@@ -92,7 +97,12 @@ def build_team_ratings(active):
     if denom<=0: return d
     for col,spec in active.items():
         if col not in d: raise ValueError(f"{label(col)} is missing from the permanent dataset.")
-        pre=d.groupby(["team","season"])[col].transform(lambda x:x.shift(1).expanding().mean())
+        # Window/EWM features above are already pregame values. Base columns use
+        # season-to-date expanding averages here.
+        if col.endswith(("_l3","_l5","_l8","_ewm")):
+            pre=d[col]
+        else:
+            pre=d.groupby(["team","season"])[col].transform(lambda x:x.shift(1).expanding().mean())
         z=pd.DataFrame({"x":pre,"season":d.season,"week":d.week}).groupby(["season","week"])["x"].transform(
             lambda x:(x-x.mean())/x.std(ddof=0) if x.notna().sum()>1 and x.std(ddof=0)>0 else 0.0)
         d["rating"]+=z*spec["direction"]*spec["weight"]/denom
