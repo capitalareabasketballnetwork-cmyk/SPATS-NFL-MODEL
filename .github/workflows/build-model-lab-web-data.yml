@@ -37,5 +37,6 @@ jobs:
             echo "Web dataset is already current."
           else
             git commit -m "Update Model Lab web dataset"
-            git push
+            git pull --rebase origin main
+            git push origin HEAD:main
           fi
