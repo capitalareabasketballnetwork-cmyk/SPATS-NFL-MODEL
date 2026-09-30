@@ -37,6 +37,10 @@ jobs:
             echo "Web dataset is already current."
           else
             git commit -m "Update Model Lab web dataset"
+            git stash --include-untracked
             git pull --rebase origin main
+            git stash pop
+            git add -f data/web/model_lab_team_games.csv.gz data/web/model_lab_games.csv.gz
+            git commit --amend --no-edit
             git push origin HEAD:main
           fi
