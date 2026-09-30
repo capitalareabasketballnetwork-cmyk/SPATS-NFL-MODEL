@@ -3,6 +3,10 @@ import json, random
 import numpy as np
 import pandas as pd
 import streamlit as st
+try:
+    from supabase import create_client
+except ImportError:
+    create_client=None
 
 ROOT=Path(__file__).resolve().parent
 CFG=ROOT/"config/model_lab.json"
@@ -32,7 +36,69 @@ def default_dir(k):
     bad=("allowed","against","penalt","interception","sack_allowed","pressure_allowed","turnover_rate")
     return -1 if any(x in k.lower() for x in bad) else 1
 
+
+# Authentication + persistent per-user model storage.
+def _secret(path, default=None):
+    try:
+        x=st.secrets
+        for p in path.split("."): x=x[p]
+        return x
+    except Exception: return default
+
+def auth_configured():
+    return bool(_secret("auth.client_id") and _secret("auth.client_secret") and _secret("auth.cookie_secret"))
+
+def db_configured():
+    return bool(create_client and _secret("supabase.url") and _secret("supabase.secret_key"))
+
+@st.cache_resource
+def db_client(url,key):
+    return create_client(url,key)
+
+def current_user_id():
+    return str(getattr(st.user,"sub",None) or getattr(st.user,"email",""))
+
+def fetch_saved_models():
+    if not db_configured(): return {}
+    try:
+        r=db_client(_secret("supabase.url"),_secret("supabase.secret_key")).table("saved_models").select("*").eq("user_id",current_user_id()).order("updated_at",desc=True).execute()
+        out={}
+        for row in (r.data or []):
+            payload=row.get("model_data") or {}
+            payload["name"]=row["name"]; payload["_db_id"]=row["id"]
+            out[row["name"]]=payload
+        return out
+    except Exception as e:
+        st.error(f"Saved-model database is unavailable: {e}"); return {}
+
+def persist_model(name,model):
+    if not db_configured(): return False
+    try:
+        db=db_client(_secret("supabase.url"),_secret("supabase.secret_key"))
+        existing=db.table("saved_models").select("id").eq("user_id",current_user_id()).eq("name",name).execute()
+        payload={"user_id":current_user_id(),"name":name,"model_data":model}
+        if existing.data: db.table("saved_models").update(payload).eq("id",existing.data[0]["id"]).execute()
+        else: db.table("saved_models").insert(payload).execute()
+        return True
+    except Exception as e:
+        st.error(f"Could not save model: {e}"); return False
+
+def delete_persisted_model(model):
+    if not db_configured() or not model.get("_db_id"): return
+    db_client(_secret("supabase.url"),_secret("supabase.secret_key")).table("saved_models").delete().eq("id",model["_db_id"]).eq("user_id",current_user_id()).execute()
+
 st.set_page_config(page_title="SPATS Model Lab",page_icon="🏈",layout="wide")
+if auth_configured():
+    if not st.user.is_logged_in:
+        st.title("🏈 SPATS Model Lab")
+        st.write("Sign in to build models and keep your saved models connected to your account.")
+        st.button("Continue with Google",type="primary",on_click=st.login,use_container_width=True)
+        st.stop()
+    with st.sidebar:
+        st.caption(f"Signed in as **{getattr(st.user,'name',getattr(st.user,'email','User'))}**")
+        st.button("Log out",on_click=st.logout,use_container_width=True)
+else:
+    st.warning("Account sign-in is being configured. Add the Google OIDC secrets in Streamlit to enable accounts.")
 st.title("🏈 SPATS Model Lab")
 st.caption("Build, test, improve, and use NFL prediction models with the permanent SPATS historical dataset.")
 if not (WEB_TEAM.exists() and WEB_GAMES.exists()):
@@ -116,7 +182,8 @@ with st.sidebar:
 
 builder,weekly,saved_page=st.tabs(["🧪 Model Lab","📅 Week Explorer","💾 Saved Models"])
 
-st.session_state.setdefault("saved_models",{})
+if "saved_models" not in st.session_state:
+    st.session_state.saved_models=fetch_saved_models() if getattr(st.user,"is_logged_in",False) else {}
 st.session_state.setdefault("computed_signature",None)
 st.session_state.setdefault("computed_payload",None)
 
@@ -233,13 +300,19 @@ with builder:
             save_name=st.text_input("Model name",placeholder="e.g. Week 4 Efficiency Model",key="save_model_name")
             if st.button("💾 Save Model",type="primary",disabled=not bool(save_name.strip())):
                 name=save_name.strip()
-                st.session_state.saved_models[name]={
+                model_payload={
                     "name":name,
                     "stats":{k:{"weight":float(v["weight"]),"direction":int(v["direction"])} for k,v in active.items()},
                     "accuracy":float(pct),"record":f"{wins}–{n-wins}","games":int(n),
                     "start_season":int(start),"end_season":int(end)
                 }
-                st.success(f'Saved **{name}**. You can reopen it from the Saved Models page.')
+                if db_configured() and getattr(st.user,"is_logged_in",False):
+                    if persist_model(name,model_payload):
+                        st.session_state.saved_models=fetch_saved_models()
+                        st.success(f'Saved **{name}** to your account.')
+                else:
+                    st.session_state.saved_models[name]=model_payload
+                    st.warning("Saved for this session only until the account database is configured.")
 
             consistency=max(0,1-float(summary.accuracy.std(ddof=0) if len(summary)>1 else 0))
             rating=float(np.clip(1+((pct-48)/17)*8 + min(n,2000)/2000*.5 + (consistency-.9)*1.5,1,10)); col=score_color(rating)
@@ -383,6 +456,7 @@ with saved_page:
                 st.session_state["saved_future_model"]=picked
                 st.success(f'**{picked}** is loaded. Open Week Explorer to view its picks for upcoming games.')
             if a3.button("🗑️ Delete Model"):
+                delete_persisted_model(model)
                 del st.session_state.saved_models[picked]
                 st.session_state.pop("open_saved_model",None)
                 st.rerun()
