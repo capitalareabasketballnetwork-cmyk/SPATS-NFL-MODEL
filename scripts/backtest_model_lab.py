@@ -45,6 +45,19 @@ def main():
     cfg=json.loads(CFG.read_text())
     tg=pd.read_parquet(R/"data/curated/team_game_derived.parquet").copy()
     games=pd.read_parquet(R/"data/curated/games.parquet").copy()
+
+    # Derive team point differential directly from the canonical game scores.
+    # This avoids depending on a duplicated score column in team_game_derived.
+    home_margin=games[["game_id","home_team","home_margin"]].rename(
+        columns={"home_team":"team","home_margin":"point_differential_per_game"})
+    away_margin=games[["game_id","away_team","home_margin"]].rename(
+        columns={"away_team":"team"})
+    away_margin["point_differential_per_game"]=-away_margin["home_margin"]
+    away_margin=away_margin[["game_id","team","point_differential_per_game"]]
+    margins=pd.concat([home_margin,away_margin],ignore_index=True)
+    tg=tg.drop(columns=["point_differential_per_game"],errors="ignore").merge(
+        margins,on=["game_id","team"],how="left")
+
     tg["game_date"]=pd.to_datetime(tg["game_date"],errors="coerce")
     tg=tg.sort_values(["team","game_date","game_id"])
 
