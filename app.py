@@ -80,17 +80,27 @@ for k in options:
     st.session_state.setdefault(f"use_{k}",k in st.session_state.selected_stats)
     st.session_state.setdefault(f"dir_{k}","Higher is better" if default_dir(k)>0 else "Lower is better")
 
-def _randomize_from(pool):
+st.session_state.setdefault("random_count_all",5)
+st.session_state.setdefault("random_count_common",5)
+
+def _randomize_from(pool,count_key):
     if not pool: return
-    n=random.randint(min(3,len(pool)),min(8,len(pool))); picks=random.sample(pool,n); st.session_state.selected_stats=picks
+    n=max(1,min(int(st.session_state.get(count_key,5)),len(pool))); picks=random.sample(pool,n); st.session_state.selected_stats=picks
     vals=np.random.dirichlet(np.ones(n))
     rounded=[round(float(v),3) for v in vals]
     rounded[-1]=round(1.0-sum(rounded[:-1]),3)
     for k in options: st.session_state[f"use_{k}"]=k in picks
     for k,v in zip(picks,rounded): st.session_state[f"w_{k}"]=v
 
-def randomize(): _randomize_from(options)
-def randomize_common(): _randomize_from(common_options)
+def randomize(): _randomize_from(options,"random_count_all")
+def randomize_common(): _randomize_from(common_options,"random_count_common")
+
+def equalize_weights():
+    keys=[k for k in st.session_state.selected_stats if k in options and st.session_state.get(f"use_{k}",True)]
+    if not keys: return
+    vals=[round(1.0/len(keys),3) for _ in keys[:-1]]
+    vals.append(round(1.0-sum(vals),3))
+    for k,v in zip(keys,vals): st.session_state[f"w_{k}"]=v
 
 def apply_weights(changes):
     for k,w in changes.items():
@@ -151,7 +161,7 @@ def accuracy_color(p):
 
 with builder:
     st.subheader("Model Builder")
-    c1,c2,c3=st.columns([5,1.15,1.55])
+    c1,c2,c3=st.columns([4.7,1.45,1.75])
     with c1:
         chosen=st.multiselect("Add statistics to your model",dropdown_options,default=[x for x in st.session_state.selected_stats if x in options],format_func=dropdown_label,placeholder="Choose a statistic…")
         st.caption("🔵 = common stat")
@@ -160,9 +170,13 @@ with builder:
             for k in options: st.session_state[f"use_{k}"]=k in chosen
             st.rerun()
     with c2:
-        st.write(""); st.write(""); st.button("🎲 Randomize",use_container_width=True,on_click=randomize,help="Randomize from all available statistics.")
+        st.write("")
+        st.number_input("Random stats",min_value=1,max_value=max(1,len(options)),step=1,key="random_count_all",help="Use −/+ to choose how many random statistics to add.")
+        st.button("🎲 Randomize",use_container_width=True,on_click=randomize,help="Randomize this many statistics from all available stats.")
     with c3:
-        st.write(""); st.write(""); st.button("🔵 Randomize Common",use_container_width=True,on_click=randomize_common,help="Randomize using only common statistics.")
+        st.write("")
+        st.number_input("Common stats",min_value=1,max_value=max(1,len(common_options)),step=1,key="random_count_common",help="Use −/+ to choose how many common statistics to add.")
+        st.button("🔵 Randomize Common",use_container_width=True,on_click=randomize_common,help="Randomize this many common statistics.")
     st.caption(f"{len(options)} usable statistics are currently available in the permanent web dataset. Add only the ones you want, then edit their weights.")
     if not st.session_state.selected_stats: st.info("Add at least one statistic from the dropdown above.")
     for k in list(st.session_state.selected_stats):
@@ -170,6 +184,8 @@ with builder:
         with a: st.checkbox("Use",key=f"use_{k}",label_visibility="collapsed")
         with b: st.markdown(f"**{label(k)}**")
         with c: st.number_input("Weight",0.0,1.0,step=.001,format="%.3f",key=f"w_{k}",label_visibility="collapsed")
+    if st.session_state.selected_stats:
+        st.button("⚖️ Equal weights",on_click=equalize_weights,help="Distribute 1.000 equally across all selected active statistics.")
     active=active_from_state(); total=sum(v["weight"] for v in active.values())
     if not active or start>end:
         st.warning("Enable at least one statistic with a positive weight and choose a valid season range.")
