@@ -117,6 +117,8 @@ with st.sidebar:
 builder,weekly,saved_page=st.tabs(["🧪 Model Lab","📅 Week Explorer","💾 Saved Models"])
 
 st.session_state.setdefault("saved_models",{})
+st.session_state.setdefault("computed_signature",None)
+st.session_state.setdefault("computed_payload",None)
 
 def load_saved_model(model):
     chosen=[k for k in model.get("stats",{}) if k in options]
@@ -135,6 +137,9 @@ def active_from_state():
             a[k]={"weight":float(st.session_state[f"w_{k}"]),"direction":default_dir(k)}
     return a
 
+def model_signature(active,start,end):
+    return (int(start),int(end),tuple(sorted((k,round(float(v["weight"]),6),int(v["direction"])) for k,v in active.items())))
+
 def build_team_ratings(active):
     d=tg.copy().sort_values(["team","game_date","game_id"]); denom=sum(abs(v["weight"]) for v in active.values()); d["rating"]=0.0
     if denom<=0: return d
@@ -151,7 +156,9 @@ def build_team_ratings(active):
         d["rating"]+=z*spec["direction"]*spec["weight"]/denom
     return d
 
-def run_backtest(start,end,active):
+@st.cache_data(show_spinner=False)
+def run_backtest(start,end,active_items):
+    active={k:{"weight":w,"direction":d} for k,w,d in active_items}
     d=build_team_ratings(active); r=d[["game_id","team","rating"]]
     h=r.rename(columns={"team":"home_team","rating":"home_rating"}); a=r.rename(columns={"team":"away_team","rating":"away_rating"})
     out=games.merge(h,on=["game_id","home_team"],how="left").merge(a,on=["game_id","away_team"],how="left")
@@ -163,7 +170,8 @@ def run_backtest(start,end,active):
     return out,out.groupby("season").agg(games=("correct","size"),wins=("correct","sum"),accuracy=("correct","mean")).reset_index()
 
 def accuracy_of(a):
-    r,_=run_backtest(int(start),int(end),a); return (float(r.correct.mean()) if len(r) else 0.0),len(r)
+    items=tuple(sorted((k,float(v["weight"]),int(v["direction"])) for k,v in a.items()))
+    r,_=run_backtest(int(start),int(end),items); return (float(r.correct.mean()) if len(r) else 0.0),len(r)
 
 def score_color(x):
     palette=["#5b0a0a","#8b1111","#c44b12","#d98b00","#d9c92f","#b7c93b","#78c66a","#2f9e44","#126b2f"]
@@ -204,8 +212,19 @@ with builder:
     elif abs(total-1.0)>0.0005:
         st.error(f"⚠️ Make sure your active weights add up to **1.00**. Current total: **{total:.3f}**")
     else:
+        sig=model_signature(active,start,end)
+        compute_now=st.button("▶️ Compute Model",type="primary",use_container_width=True,help="Run the historical backtest using the current statistics and weights.")
+        if compute_now:
+            with st.spinner("Computing model…"):
+                items=tuple(sorted((k,float(v["weight"]),int(v["direction"])) for k,v in active.items()))
+                results,summary=run_backtest(int(start),int(end),items)
+                st.session_state.computed_signature=sig
+                st.session_state.computed_payload=(results,summary)
+        if st.session_state.computed_signature!=sig or st.session_state.computed_payload is None:
+            st.info("Model settings changed. Press **Compute Model** when you're ready to calculate the backtest.")
+            st.stop()
         try:
-            results,summary=run_backtest(int(start),int(end),active); n=len(results); wins=int(results.correct.sum()); acc=wins/n if n else 0; pct=acc*100
+            results,summary=st.session_state.computed_payload; n=len(results); wins=int(results.correct.sum()); acc=wins/n if n else 0; pct=acc*100
             bg,txt,status=accuracy_color(pct); st.divider(); st.subheader("Live Model Results")
             st.markdown(f'<div style="background:{bg};border-radius:18px;padding:22px;text-align:center"><div style="font-size:15px;font-weight:800">OVERALL BACKTEST ACCURACY</div><div style="font-size:68px;font-weight:900;color:{txt};line-height:1.05">{pct:.2f}%</div><div style="font-size:18px;font-weight:800">{status}</div></div>',unsafe_allow_html=True)
             x,y,z=st.columns(3); x.metric("Record",f"{wins:,}–{n-wins:,}"); y.metric("Games Tested",f"{n:,}"); z.metric("Active Stats",len(active))
