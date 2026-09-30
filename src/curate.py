@@ -52,6 +52,12 @@ def build_team_game(p):
         row.update({
           "plays":len(d),"drives":drives,"epa_per_play":d.epa.mean(),"success_rate":d.success_i.mean(),
           "yards_per_play":_s(d,"yards_gained",np.nan).mean(),
+          "yards":pd.to_numeric(_s(d,"yards_gained",np.nan),errors="coerce").sum(),
+          "third_down_conversion_rate":d.third_conv_i.sum()/max(len(third),1),
+          "fourth_down_conversion_rate":d.fourth_conv_i.sum()/max(len(fourth),1),
+          "penalties":int(d.penalty_i.sum()),
+          "penalty_yards":pd.to_numeric(_s(d,"penalty_yards"),errors="coerce").fillna(0).sum(),
+          "time_of_possession_seconds":pd.to_numeric(_s(d,"drive_time_of_possession",np.nan),errors="coerce").dropna().groupby(d.loc[pd.to_numeric(_s(d,"drive_time_of_possession",np.nan),errors="coerce").notna(),"drive"]).max().sum() if "drive_time_of_possession" in d and "drive" in d else np.nan,
           "pass_epa":d.loc[d.pass_i,"epa"].mean(),"rush_epa":d.loc[d.rush_i,"epa"].mean(),
           "pass_success":d.loc[d.pass_i,"success_i"].mean(),"rush_success":d.loc[d.rush_i,"success_i"].mean(),
           "early_down_epa":d.loc[d.early_i,"epa"].mean(),
@@ -78,7 +84,25 @@ def build_team_game(p):
     ids=["game_id","season","week","game_date","team","opponent"]
     metrics=[c for c in off if c not in ids]
     de=off.rename(columns={"team":"opponent","opponent":"team",**{c:"def_"+c for c in metrics}})
-    return off.merge(de,on=ids,how="left")
+    out=off.merge(de,on=ids,how="left")
+    # Team-game values needed by Model Lab. Defensive turnover rate is the
+    # opponent offense's giveaways, so turnover margin is takeaways-giveaways.
+    out["turnover_margin_per_game"]=out["def_turnovers_per_drive"]*out["def_drives"] - out["turnovers_per_drive"]*out["drives"]
+    # Attach final score-derived margin without leaking it into the same game's
+    # prediction: Model Lab shifts/expands every team-game metric before use.
+    scores=p.groupby("game_id",as_index=False).agg(
+        home_team=("home_team","first"),away_team=("away_team","first"),
+        home_score=("total_home_score","max"),away_score=("total_away_score","max"))
+    sh=scores[["game_id","home_team","home_score","away_score"]].rename(columns={"home_team":"team"})
+    sh["point_differential_per_game"]=sh["home_score"]-sh["away_score"]
+    sa=scores[["game_id","away_team","home_score","away_score"]].rename(columns={"away_team":"team"})
+    sa["point_differential_per_game"]=sa["away_score"]-sa["home_score"]
+    margins=pd.concat([sh[["game_id","team","point_differential_per_game"]],sa[["game_id","team","point_differential_per_game"]]],ignore_index=True)
+    out=out.merge(margins,on=["game_id","team"],how="left")
+    out["yards_per_game"]=out["yards"]
+    out["penalty_yards_per_game"]=out["penalty_yards"]
+    out["penalties_per_game"]=out["penalties"]
+    return out
 
 def pregame_roll(t, windows=(3,5,8), alpha=.35):
     t=t.copy(); t["game_date"]=pd.to_datetime(t.game_date)
