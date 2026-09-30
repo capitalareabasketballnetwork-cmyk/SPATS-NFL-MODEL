@@ -353,23 +353,45 @@ with weekly:
 
 with saved_page:
     st.subheader("💾 Saved Models")
-    st.caption("Models you save in Model Lab appear here. Load one to continue editing or testing it.")
+    st.caption("Choose a saved model to open its dashboard, adjust the model, or use it to look at upcoming games.")
     if not st.session_state.saved_models:
         st.info("You haven't saved any models yet. Build a model in Model Lab, give it a name, and press Save Model.")
     else:
-        for name,model in list(st.session_state.saved_models.items()):
-            with st.container(border=True):
-                h1,h2,h3,h4=st.columns([3,1.2,1.2,1.5])
-                h1.markdown(f"### {name}")
-                h2.metric("Accuracy",f'{model.get("accuracy",0):.2f}%')
-                h3.metric("Stats",len(model.get("stats",{})))
-                h4.metric("Record",model.get("record","—"))
-                st.caption(f'Backtest: {model.get("start_season","—")}–{model.get("end_season","—")} · {model.get("games",0):,} games')
-                st.markdown(" · ".join(f'**{label(k)}** {float(v.get("weight",0)):.3f}' for k,v in model.get("stats",{}).items()))
-                b1,b2=st.columns([1,5])
-                if b1.button("📂 Load",key=f"load_saved_{name}",use_container_width=True):
-                    load_saved_model(model)
-                    st.success(f'Loaded **{name}** into Model Lab. Open the Model Lab tab to continue working on it.')
-                if b2.button("🗑️ Delete",key=f"delete_saved_{name}"):
-                    del st.session_state.saved_models[name]
-                    st.rerun()
+        names=list(st.session_state.saved_models.keys())
+        st.session_state.setdefault("open_saved_model",names[0])
+        if st.session_state.open_saved_model not in names: st.session_state.open_saved_model=names[0]
+        picked=st.selectbox("Saved models",names,index=names.index(st.session_state.open_saved_model))
+        st.session_state.open_saved_model=picked
+        model=st.session_state.saved_models[picked]
+        with st.container(border=True):
+            st.markdown(f"## {picked}")
+            m1,m2,m3,m4=st.columns(4)
+            m1.metric("Accuracy",f'{model.get("accuracy",0):.2f}%')
+            m2.metric("Record",model.get("record","—"))
+            m3.metric("Stats",len(model.get("stats",{})))
+            m4.metric("Games Tested",f'{model.get("games",0):,}')
+            st.caption(f'Backtest: {model.get("start_season","—")}–{model.get("end_season","—")}')
+            st.markdown("### Model weights")
+            saved_table=pd.DataFrame([{"Statistic":label(k),"Weight":float(v.get("weight",0))} for k,v in model.get("stats",{}).items()])
+            st.dataframe(saved_table,use_container_width=True,hide_index=True,column_config={"Weight":st.column_config.NumberColumn(format="%.3f")})
+            a1,a2,a3=st.columns([1.3,1.6,4])
+            if a1.button("✏️ Open & Adjust",type="primary",use_container_width=True):
+                load_saved_model(model)
+                st.success(f'**{picked}** is loaded into Model Lab. Open the Model Lab tab to adjust its stats or weights.')
+            if a2.button("🏈 Use for Future Games",use_container_width=True):
+                load_saved_model(model)
+                st.session_state["saved_future_model"]=picked
+                st.success(f'**{picked}** is loaded. Open Week Explorer to view its picks for upcoming games.')
+            if a3.button("🗑️ Delete Model"):
+                del st.session_state.saved_models[picked]
+                st.session_state.pop("open_saved_model",None)
+                st.rerun()
+
+        st.markdown("### Saved model list")
+        for name in names:
+            sm=st.session_state.saved_models[name]
+            left,right=st.columns([5,1])
+            left.markdown(f'**{name}**  ·  {sm.get("accuracy",0):.2f}%  ·  {len(sm.get("stats",{}))} stats  ·  {sm.get("record","—")}')
+            if right.button("Open",key=f"open_card_{name}",use_container_width=True):
+                st.session_state.open_saved_model=name
+                st.rerun()
