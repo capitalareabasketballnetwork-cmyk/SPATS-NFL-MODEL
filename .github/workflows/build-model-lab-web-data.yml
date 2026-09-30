@@ -1,4 +1,5 @@
 name: Build Model Lab Web Data
+# Builds the compact dataset consumed by the hosted Streamlit app.
 
 on:
   workflow_dispatch:
