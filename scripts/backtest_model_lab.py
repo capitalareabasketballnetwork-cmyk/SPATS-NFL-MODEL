@@ -14,7 +14,7 @@ OUT=R/"reports/model_lab_results.csv"
 SUMMARY=R/"reports/model_lab_summary.csv"
 
 ALIASES={
- "point_differential_per_game":["point_differential","margin","point_diff","team_margin"],
+ "point_differential_per_game":["point_differential_per_game","point_differential","margin","point_diff","team_margin"],
  "offensive_epa_per_play":["epa_per_play","total_epa_per_play","off_epa_per_play"],
  "defensive_success_rate":["def_success_rate","success_rate_allowed"],
  "third_down_conversion_rate":["third_down_conversion_rate","third_down_rate","third_down_pct","third_down_conv"],
