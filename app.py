@@ -116,26 +116,54 @@ def run_backtest(start,end,active):
     summary=out.groupby("season").agg(games=("correct","size"),wins=("correct","sum"),accuracy=("correct","mean")).reset_index()
     return out,summary
 
-if weight_total<=0: st.warning("Enable at least one statistic with a positive weight.")
-if st.button("Run Backtest",type="primary",disabled=(start>end or weight_total<=0),use_container_width=True):
+if weight_total<=0:
+    st.warning("Enable at least one statistic with a positive weight.")
+elif start>end:
+    st.warning("Choose a valid season range.")
+else:
+    # Streamlit reruns automatically whenever a toggle, weight, or season changes,
+    # so the displayed results always represent the controls currently on screen.
     try:
-        with st.spinner("Running Model Lab backtest..."):
-            results,summary=run_backtest(int(start),int(end),active)
-        st.session_state["results"]=results
-        st.session_state["summary"]=summary
-        st.success("Backtest complete.")
-    except Exception as e:
-        st.error(f"Backtest stopped: {e}")
+        results,summary=run_backtest(int(start),int(end),active)
+        total_games=len(results)
+        wins=int(results["correct"].sum())
+        accuracy=wins/total_games if total_games else 0
 
-if "summary" in st.session_state:
-    summary=st.session_state["summary"]; results=st.session_state["results"]
-    total_games=len(results); wins=int(results["correct"].sum()); accuracy=wins/total_games if total_games else 0
-    a,b,c=st.columns(3)
-    a.metric("Overall Accuracy",f"{accuracy*100:.2f}%"); b.metric("Correct Picks",f"{wins:,}"); c.metric("Games Tested",f"{total_games:,}")
-    st.subheader("Season Results")
-    chart=summary.copy(); chart["accuracy"]=chart["accuracy"]*100
-    st.bar_chart(chart.set_index("season")["accuracy"],y_label="Accuracy %")
-    st.dataframe(chart.rename(columns={"season":"Season","games":"Games","wins":"Correct","accuracy":"Accuracy %"}),use_container_width=True,hide_index=True)
-    st.subheader("Game Results")
-    cols=[c for c in ["season","week","away_team","home_team","pick","actual_winner","correct","model_edge"] if c in results.columns]
-    st.dataframe(results[cols].sort_values(["season","week"],ascending=[False,False]),use_container_width=True,hide_index=True)
+        st.divider()
+        st.subheader("Live Model Results")
+        a,b,c=st.columns(3)
+        a.metric("Overall Accuracy",f"{accuracy*100:.2f}%")
+        b.metric("Record",f"{wins:,}–{total_games-wins:,}")
+        c.metric("Games Tested",f"{total_games:,}")
+
+        st.caption("Results update automatically whenever you change a statistic, weight, or season range.")
+
+        st.subheader("Normalized Weights")
+        norm=pd.DataFrame([
+            {
+                "Statistic":LABELS.get(k,k),
+                "Raw Weight":float(v["weight"]),
+                "Model Weight %":float(v["weight"])/weight_total*100,
+            }
+            for k,v in active.items()
+        ])
+        st.dataframe(norm,use_container_width=True,hide_index=True,column_config={
+            "Raw Weight":st.column_config.NumberColumn(format="%.1f"),
+            "Model Weight %":st.column_config.NumberColumn(format="%.2f%%"),
+        })
+
+        st.subheader("Season Results")
+        chart=summary.copy()
+        chart["accuracy"]=chart["accuracy"]*100
+        st.bar_chart(chart.set_index("season")["accuracy"],y_label="Accuracy %")
+        st.dataframe(
+            chart.rename(columns={"season":"Season","games":"Games","wins":"Correct","accuracy":"Accuracy %"}),
+            use_container_width=True,hide_index=True,
+            column_config={"Accuracy %":st.column_config.NumberColumn(format="%.2f%%")}
+        )
+
+        with st.expander("View individual game results"):
+            cols=[x for x in ["season","week","away_team","home_team","pick","actual_winner","correct","model_edge"] if x in results.columns]
+            st.dataframe(results[cols].sort_values(["season","week"],ascending=[False,False]),use_container_width=True,hide_index=True)
+    except Exception as e:
+        st.error(f"Model could not be calculated: {e}")
