@@ -62,13 +62,9 @@ def feature_base(k):
 common_options=sorted([x for x in numeric if feature_base(x) in COMMON_BASES],key=lambda x:(COMMON_BASES.index(feature_base(x)),label(x)))
 other_options=sorted([x for x in numeric if x not in common_options],key=lambda x:label(x))
 options=common_options+other_options
-COMMON_MARK="──────── ★ COMMON STATS ────────"
-ALL_MARK="──────── ALL OTHER STATS ────────"
-dropdown_options=[COMMON_MARK]+common_options+[ALL_MARK]+other_options
+dropdown_options=common_options+other_options
 def dropdown_label(k):
-    if k==COMMON_MARK: return "🔷  COMMON STATS"
-    if k==ALL_MARK: return "ALL OTHER STATS"
-    return ("🔹 " if k in common_options else "")+label(k)
+    return ("🔵 " if k in common_options else "")+label(k)
 
 cfg=json.loads(CFG.read_text()) if CFG.exists() else {"seasons":{"start":2015,"end":2026},"stats":{}}
 def cfg_col(k): return {"offensive_epa_per_play":"epa_per_play","defensive_success_rate":"def_success_rate"}.get(k,k)
@@ -153,11 +149,8 @@ with builder:
     st.subheader("Model Builder")
     c1,c2=st.columns([5,1])
     with c1:
-        chosen_raw=st.multiselect("Add statistics to your model",dropdown_options,default=[x for x in st.session_state.selected_stats if x in options],format_func=dropdown_label,placeholder="Choose from common stats first, or browse all available statistics…")
-        chosen=[x for x in chosen_raw if x in options]
-        if chosen_raw!=chosen:
-            st.session_state.selected_stats=chosen
-            st.rerun()
+        chosen=st.multiselect("Add statistics to your model",dropdown_options,default=[x for x in st.session_state.selected_stats if x in options],format_func=dropdown_label,placeholder="Choose a statistic…")
+        st.caption("🔵 = common stat")
         if chosen!=st.session_state.selected_stats:
             st.session_state.selected_stats=chosen
             for k in options: st.session_state[f"use_{k}"]=k in chosen
