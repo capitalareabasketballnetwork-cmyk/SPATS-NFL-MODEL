@@ -104,11 +104,18 @@ st.caption("Build, test, improve, and use NFL prediction models with the permane
 if not (WEB_TEAM.exists() and WEB_GAMES.exists()):
     st.warning("Permanent Model Lab data is not available yet."); st.stop()
 
-@st.cache_data
-def load_data(): return pd.read_csv(WEB_TEAM,compression="gzip"),pd.read_csv(WEB_GAMES,compression="gzip")
+@st.cache_data(show_spinner=False)
+def load_data():
+    team=pd.read_csv(WEB_TEAM,compression="gzip")
+    game=pd.read_csv(WEB_GAMES,compression="gzip")
+    team["game_date"]=pd.to_datetime(team.get("game_date"),errors="coerce")
+    game["game_date"]=pd.to_datetime(game.get("game_date"),errors="coerce")
+    team["season"]=pd.to_numeric(team["season"],errors="coerce")
+    team["week"]=pd.to_numeric(team["week"],errors="coerce")
+    game["season"]=pd.to_numeric(game["season"],errors="coerce")
+    game["week"]=pd.to_numeric(game["week"],errors="coerce")
+    return team,game
 tg,games=load_data()
-tg["game_date"]=pd.to_datetime(tg.get("game_date"),errors="coerce")
-games["game_date"]=pd.to_datetime(games.get("game_date"),errors="coerce")
 
 numeric=[c for c in tg.columns if c not in ID_COLS and pd.api.types.is_numeric_dtype(tg[c]) and tg[c].notna().sum()>20 and tg[c].nunique(dropna=True)>1]
 for dup,primary in [("third_down_rate","third_down_conversion_rate"),("fourth_down_rate","fourth_down_conversion_rate")]:
@@ -400,30 +407,10 @@ with weekly:
     st.subheader("Week Explorer")
     st.caption("Choose a season, one of your saved models, and a week. Predictions are only generated when you press Compute Predictions.")
 
-    @st.cache_data(ttl=900,show_spinner=False)
-    def explorer_schedule():
-        """Merge the permanent game file with nflverse so future regular-season weeks are available."""
-        base=games.copy()
-        try:
-            url="https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv"
-            live=pd.read_csv(url,low_memory=False)
-            wanted=["game_id","season","week","gameday","away_team","home_team","away_score","home_score","result","game_type"]
-            live=live[[x for x in wanted if x in live.columns]].copy()
-            if "game_type" in live.columns:
-                live=live[live["game_type"].eq("REG")]
-            live=live.rename(columns={"gameday":"game_date","result":"home_margin"})
-            for col in ["season","week"]:
-                live[col]=pd.to_numeric(live[col],errors="coerce")
-            # Prefer the live schedule row for matching game IDs, while retaining permanent historical rows.
-            if "game_id" in base.columns and "game_id" in live.columns:
-                base=base[~base["game_id"].astype(str).isin(live["game_id"].astype(str))]
-            return pd.concat([base,live],ignore_index=True,sort=False)
-        except Exception:
-            return base
+    # Use the permanent local schedule. Avoid a network download on every fresh app session.
+    # Future games are already exported into model_lab_games; the exporter/workflow owns schedule refreshes.
+    schedule=games
 
-    schedule=explorer_schedule()
-    schedule["season"]=pd.to_numeric(schedule["season"],errors="coerce")
-    schedule["week"]=pd.to_numeric(schedule["week"],errors="coerce")
     explorer_seasons=sorted(schedule["season"].dropna().astype(int).unique())
     saved_names=list(st.session_state.saved_models.keys())
 
@@ -462,8 +449,8 @@ with weekly:
                 st.session_state.pop("week_prediction_payload",None)
             else:
                 active={k:{"weight":float(v.get("weight",0)),"direction":int(v.get("direction",default_dir(k)))} for k,v in model_stats.items() if float(v.get("weight",0))>0}
-                hist=tg[(pd.to_numeric(tg.season,errors="coerce")==season_pick)&(pd.to_numeric(tg.week,errors="coerce")<week_pick)].copy()
-                prev=tg[pd.to_numeric(tg.season,errors="coerce")==season_pick-1].copy()
+                hist=tg[(tg.season==season_pick)&(tg.week<week_pick)].copy()
+                prev=tg[tg.season==season_pick-1].copy()
                 team_rating={}
                 if active:
                     # Early-season carryover prevents Week 1 from having no picks and keeps
