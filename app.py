@@ -453,18 +453,41 @@ with weekly:
             else:
                 active={k:{"weight":float(v.get("weight",0)),"direction":int(v.get("direction",default_dir(k)))} for k,v in model_stats.items() if float(v.get("weight",0))>0}
                 hist=tg[(pd.to_numeric(tg.season,errors="coerce")==season_pick)&(pd.to_numeric(tg.week,errors="coerce")<week_pick)].copy()
+                prev=tg[pd.to_numeric(tg.season,errors="coerce")==season_pick-1].copy()
                 team_rating={}
-                if not hist.empty and active:
-                    teams=sorted(set(hist.team.dropna()))
+                if active:
+                    # Early-season carryover prevents Week 1 from having no picks and keeps
+                    # one or two games from completely replacing what we knew entering the year.
+                    # Week 1/2/3/4/5+ previous-season shares: 100% / 70% / 45% / 25% / 0%.
+                    prev_share={1:1.00,2:0.70,3:0.45,4:0.25}.get(int(week_pick),0.0)
+                    current_share=1.0-prev_share
+                    teams=sorted(set(hist.team.dropna()).union(set(prev.team.dropna())))
                     raw=pd.DataFrame(index=teams); raw["rating"]=0.0
                     denom=sum(abs(v["weight"]) for v in active.values())
-                    for col,spec in active.items():
-                        # Recent-window features are already pregame values; use the latest available value.
+
+                    def season_feature_values(frame,col,team_index):
+                        if frame.empty:
+                            return pd.Series(index=team_index,dtype=float)
                         if col.endswith(("_l3","_l5","_l8","_ewm")):
-                            vals=hist.sort_values(["team","game_date","game_id"]).groupby("team")[col].last()
+                            vals=frame.sort_values(["team","game_date","game_id"]).groupby("team")[col].last()
                         else:
-                            vals=hist.groupby("team")[col].mean()
-                        x=vals.reindex(teams); sd=x.std(ddof=0)
+                            vals=frame.groupby("team")[col].mean()
+                        return vals.reindex(team_index)
+
+                    for col,spec in active.items():
+                        cur=season_feature_values(hist,col,teams)
+                        old=season_feature_values(prev,col,teams)
+                        # Blend raw feature values first, then standardize across teams.
+                        # If a team lacks one side of the blend (e.g. expansion/data gap),
+                        # use the side that is available rather than forcing a zero.
+                        if prev_share>=1.0:
+                            x=old
+                        elif prev_share<=0.0:
+                            x=cur
+                        else:
+                            x=(cur*current_share+old*prev_share)
+                            x=x.where(cur.notna()&old.notna(),cur.where(cur.notna(),old))
+                        sd=x.std(ddof=0)
                         zz=(x-x.mean())/sd if pd.notna(sd) and sd>0 else x*0
                         raw["rating"]+=zz.fillna(0)*spec["direction"]*spec["weight"]/denom
                     team_rating=raw["rating"].to_dict()
