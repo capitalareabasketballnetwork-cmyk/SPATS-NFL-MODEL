@@ -250,12 +250,22 @@ with builder:
     st.subheader("Model Builder")
     c1,c2,c3=st.columns([4.7,1.45,1.75])
     with c1:
-        chosen=st.multiselect("Add statistics to your model",dropdown_options,default=[x for x in st.session_state.selected_stats if x in options],format_func=dropdown_label,placeholder="Choose a statistic…")
+        # Keep the multiselect open while the user adds several statistics.
+        # Streamlit already reruns after a widget change, so an explicit st.rerun()
+        # here caused the selector to close after every single selection.
+        chosen=st.multiselect(
+            "Add statistics to your model",
+            dropdown_options,
+            default=[x for x in st.session_state.selected_stats if x in options],
+            format_func=dropdown_label,
+            placeholder="Choose statistics…",
+            key="stat_selector",
+        )
         st.caption("🔵 = common stat")
         if chosen!=st.session_state.selected_stats:
-            st.session_state.selected_stats=chosen
-            for k in options: st.session_state[f"use_{k}"]=k in chosen
-            st.rerun()
+            st.session_state.selected_stats=list(chosen)
+            for k in options:
+                st.session_state[f"use_{k}"]=k in chosen
     with c2:
         st.write("")
         st.number_input("Random stats",min_value=1,max_value=max(1,len(options)),step=1,key="random_count_all",help="Use −/+ to choose how many random statistics to add.")
