@@ -407,9 +407,27 @@ with weekly:
     st.subheader("Week Explorer")
     st.caption("Choose a season, one of your saved models, and a week. Predictions are only generated when you press Compute Predictions.")
 
-    # Use the permanent local schedule. Avoid a network download on every fresh app session.
-    # Future games are already exported into model_lab_games; the exporter/workflow owns schedule refreshes.
-    schedule=games
+    @st.cache_data(ttl=3600,show_spinner=False)
+    def explorer_schedule(base_games):
+        """Add future regular-season games while caching the network work for an hour."""
+        base=base_games.copy()
+        try:
+            live=pd.read_csv("https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv",low_memory=False)
+            wanted=["game_id","season","week","gameday","away_team","home_team","away_score","home_score","result","game_type"]
+            live=live[[x for x in wanted if x in live.columns]].copy()
+            if "game_type" in live.columns:
+                live=live[live["game_type"].eq("REG")]
+            live=live.rename(columns={"gameday":"game_date","result":"home_margin"})
+            live["game_date"]=pd.to_datetime(live.get("game_date"),errors="coerce")
+            live["season"]=pd.to_numeric(live["season"],errors="coerce")
+            live["week"]=pd.to_numeric(live["week"],errors="coerce")
+            if "game_id" in base.columns and "game_id" in live.columns:
+                base=base[~base["game_id"].astype(str).isin(live["game_id"].astype(str))]
+            return pd.concat([base,live],ignore_index=True,sort=False)
+        except Exception:
+            return base
+
+    schedule=explorer_schedule(games)
 
     explorer_seasons=sorted(schedule["season"].dropna().astype(int).unique())
     saved_names=list(st.session_state.saved_models.keys())
