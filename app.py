@@ -483,16 +483,42 @@ with weekly:
             if view.empty:
                 st.warning("No games were found for this week.")
             else:
+                # Score only games that have actually been completed.
+                finished_mask=pd.to_numeric(view.get("home_margin"),errors="coerce").notna()
+                graded=view[finished_mask].copy()
+                if not graded.empty:
+                    graded["actual_winner"]=np.where(pd.to_numeric(graded.home_margin,errors="coerce")>0,graded.home_team,graded.away_team)
+                    graded["correct"]=graded["pick"].eq(graded["actual_winner"])
+                    correct_n=int(graded["correct"].sum()); played_n=int(len(graded)); week_pct=100*correct_n/played_n
+                    st.markdown(
+                        f'<div style="border:1px solid #666;border-radius:16px;padding:18px;margin:10px 0 18px;text-align:center">'
+                        f'<div style="font-size:14px;font-weight:800;opacity:.8">WEEK RESULTS</div>'
+                        f'<div style="font-size:38px;font-weight:900;color:white">{correct_n}/{played_n} &nbsp; {week_pct:.2f}%</div>'
+                        f'</div>',unsafe_allow_html=True)
+                else:
+                    st.info("No games in this week have been completed yet.")
+
                 for _,g in view.sort_values("game_date").iterrows():
                     finished=pd.notna(g.get("home_margin")); edge=g.get("model_edge",np.nan); pick=g.get("pick","—")
                     hs=g.get("home_score",np.nan); aws=g.get("away_score",np.nan)
                     if finished:
-                        hw=float(g.home_margin)>0; away_col="#39d353" if not hw else "#ff6b6b"; home_col="#39d353" if hw else "#ff6b6b"
+                        actual=(g.home_team if float(g.home_margin)>0 else g.away_team)
+                        correct=(pick==actual)
+                        box_bg="#123d25" if correct else "#4a1d1d"
+                        box_border="#2f9e44" if correct else "#c94a4a"
                         score=(f"{int(aws)} – {int(hs)}" if pd.notna(aws) and pd.notna(hs) else f"Margin: {abs(float(g.home_margin)):.0f}")
-                        st.markdown(f'<div style="border:1px solid #555;border-radius:14px;padding:14px;margin:8px 0"><b>Final</b> &nbsp; <span style="color:{away_col};font-size:20px;font-weight:800">{g.away_team}</span> <b>{score}</b> <span style="color:{home_col};font-size:20px;font-weight:800">{g.home_team}</span><br><span style="opacity:.8">Model pick: <b>{pick}</b></span></div>',unsafe_allow_html=True)
+                        st.markdown(
+                            f'<div style="background:{box_bg};border:2px solid {box_border};border-radius:14px;padding:14px;margin:8px 0;color:white">'
+                            f'<b>Final</b> &nbsp; <span style="color:white;font-size:20px;font-weight:800">{g.away_team}</span> '
+                            f'<b style="color:white">{score}</b> '
+                            f'<span style="color:white;font-size:20px;font-weight:800">{g.home_team}</span>'
+                            f'<br><span style="color:white">Model pick: <b>{pick}</b></span></div>',unsafe_allow_html=True)
                     else:
                         detail=f" · Edge {abs(float(edge)):.2f}" if pd.notna(edge) else " · Waiting for enough prior-season data"
-                        st.markdown(f'<div style="border:1px solid #555;border-radius:14px;padding:14px;margin:8px 0"><b>{g.away_team} @ {g.home_team}</b><br>Model pick: <b>{pick}</b>{detail}</div>',unsafe_allow_html=True)
+                        st.markdown(
+                            f'<div style="border:1px solid #555;border-radius:14px;padding:14px;margin:8px 0;color:white">'
+                            f'<b style="color:white">{g.away_team} @ {g.home_team}</b><br>'
+                            f'<span style="color:white">Model pick: <b>{pick}</b>{detail}</span></div>',unsafe_allow_html=True)
         elif payload:
             st.info("Selections changed. Press **Compute Predictions** to run the selected saved model for this week.")
 
