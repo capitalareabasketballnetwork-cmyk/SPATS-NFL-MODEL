@@ -531,17 +531,20 @@ with weekly:
                         box_border="#2f9e44" if correct else "#c94a4a"
                         score=(f"{int(aws)} – {int(hs)}" if pd.notna(aws) and pd.notna(hs) else f"Margin: {abs(float(g.home_margin)):.0f}")
                         st.markdown(
-                            f'<div style="background:{box_bg};border:2px solid {box_border};border-radius:14px;padding:14px;margin:8px 0;color:white">'
-                            f'<b>Final</b> &nbsp; <span style="color:white;font-size:20px;font-weight:800">{g.away_team}</span> '
+                            f'<div style="background:{box_bg};border:2px solid {box_border};border-radius:14px;padding:14px;margin:8px 0;color:white;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">'
+                            f'<div><b>Final</b> &nbsp; <span style="color:white;font-size:20px;font-weight:800">{g.away_team}</span> '
                             f'<b style="color:white">{score}</b> '
-                            f'<span style="color:white;font-size:20px;font-weight:800">{g.home_team}</span>'
-                            f'<br><span style="color:white">Model pick: <b>{pick}</b></span></div>',unsafe_allow_html=True)
+                            f'<span style="color:white;font-size:20px;font-weight:800">{g.home_team}</span></div>'
+                            f'<div style="border:1px solid rgba(255,255,255,.65);border-radius:10px;padding:8px 14px;color:white;white-space:nowrap">'
+                            f'<span style="font-size:12px;font-weight:700;opacity:.85">PREDICTION</span><br><b style="font-size:20px">{pick}</b></div></div>',unsafe_allow_html=True)
                     else:
-                        detail=f" · Edge {abs(float(edge)):.2f}" if pd.notna(edge) else " · Waiting for enough prior-season data"
+                        detail=f"Edge {abs(float(edge)):.2f}" if pd.notna(edge) else "Waiting for enough prior-season data"
                         st.markdown(
-                            f'<div style="border:1px solid #555;border-radius:14px;padding:14px;margin:8px 0;color:white">'
-                            f'<b style="color:white">{g.away_team} @ {g.home_team}</b><br>'
-                            f'<span style="color:white">Model pick: <b>{pick}</b>{detail}</span></div>',unsafe_allow_html=True)
+                            f'<div style="border:1px solid #555;border-radius:14px;padding:14px;margin:8px 0;color:white;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">'
+                            f'<div><b style="color:white;font-size:20px">{g.away_team} @ {g.home_team}</b><br>'
+                            f'<span style="color:white;opacity:.8">{detail}</span></div>'
+                            f'<div style="border:1px solid #777;border-radius:10px;padding:8px 14px;color:white;white-space:nowrap">'
+                            f'<span style="font-size:12px;font-weight:700;opacity:.75">PREDICTION</span><br><b style="font-size:20px">{pick}</b></div></div>',unsafe_allow_html=True)
         elif payload:
             st.info("Selections changed. Press **Compute Predictions** to run the selected saved model for this week.")
 
