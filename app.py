@@ -158,7 +158,12 @@ st.session_state.setdefault("random_count_common",5)
 
 def _randomize_from(pool,count_key):
     if not pool: return
-    n=max(1,min(int(st.session_state.get(count_key,5)),len(pool))); picks=random.sample(pool,n); st.session_state.selected_stats=picks
+    n=max(1,min(int(st.session_state.get(count_key,5)),len(pool)))
+    picks=random.sample(pool,n)
+    st.session_state.selected_stats=picks
+    # The multiselect has its own widget state. Keep it synchronized when
+    # buttons change the selection programmatically.
+    st.session_state["stat_selector"]=picks
     vals=np.random.dirichlet(np.ones(n))
     rounded=[round(float(v),3) for v in vals]
     rounded[-1]=round(1.0-sum(rounded[:-1]),3)
@@ -197,6 +202,7 @@ st.session_state.setdefault("computed_payload",None)
 def load_saved_model(model):
     chosen=[k for k in model.get("stats",{}) if k in options]
     st.session_state.selected_stats=chosen
+    st.session_state["stat_selector"]=chosen
     for k in options:
         st.session_state[f"use_{k}"]=k in chosen
     for k,spec in model.get("stats",{}).items():
