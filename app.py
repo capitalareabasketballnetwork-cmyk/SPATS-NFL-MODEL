@@ -72,16 +72,16 @@ def fetch_saved_models():
         st.error(f"Saved-model database is unavailable: {e}"); return {}
 
 def persist_model(name,model):
-    if not db_configured(): return False
+    if not db_configured(): return None
     try:
         db=db_client(_secret("supabase.url"),_secret("supabase.secret_key"))
-        existing=db.table("saved_models").select("id").eq("user_id",current_user_id()).eq("name",name).execute()
         payload={"user_id":current_user_id(),"name":name,"model_data":model}
-        if existing.data: db.table("saved_models").update(payload).eq("id",existing.data[0]["id"]).execute()
-        else: db.table("saved_models").insert(payload).execute()
-        return True
+        # One request instead of SELECT + INSERT/UPDATE + full saved-model refetch.
+        r=db.table("saved_models").upsert(payload,on_conflict="user_id,name").execute()
+        row=(r.data or [{}])[0]
+        return row.get("id",True)
     except Exception as e:
-        st.error(f"Could not save model: {e}"); return False
+        st.error(f"Could not save model: {e}"); return None
 
 def delete_persisted_model(model):
     if not db_configured() or not model.get("_db_id"): return
@@ -330,8 +330,12 @@ with builder:
                     "start_season":int(start),"end_season":int(end)
                 }
                 if db_configured() and getattr(st.user,"is_logged_in",False):
-                    if persist_model(name,model_payload):
-                        st.session_state.saved_models=fetch_saved_models()
+                    saved_id=persist_model(name,model_payload)
+                    if saved_id:
+                        # Update only this model in memory. Do not download the user's
+                        # entire saved-model collection again after every save.
+                        model_payload["_db_id"]=saved_id if saved_id is not True else st.session_state.saved_models.get(name,{}).get("_db_id")
+                        st.session_state.saved_models[name]=model_payload
                         st.success(f'Saved **{name}** to your account.')
                 else:
                     st.session_state.saved_models[name]=model_payload
