@@ -388,40 +388,113 @@ with builder:
 
 with weekly:
     st.subheader("Week Explorer")
-    latest=int(pd.to_numeric(games.season,errors="coerce").dropna().max()); sg=games[games.season==latest].copy()
-    weeks=sorted(pd.to_numeric(sg.week,errors="coerce").dropna().astype(int).unique())
-    completed=pd.to_numeric(sg.home_margin,errors="coerce").notna()
-    current=int(sg.loc[completed,"week"].max()) if completed.any() else (weeks[0] if weeks else 1)
-    future_weeks=[w for w in weeks if w>=current and sg.loc[sg.week==w,"home_margin"].isna().any()]
-    if future_weeks: current=future_weeks[0]
-    season_pick=st.selectbox("Season",seasons,index=len(seasons)-1)
-    wg=games[games.season==season_pick]; wks=sorted(pd.to_numeric(wg.week,errors="coerce").dropna().astype(int).unique())
-    default=wks.index(current) if season_pick==latest and current in wks else len(wks)-1
-    week_pick=st.selectbox("Week",wks,index=max(0,default))
-    active=active_from_state()
-    if not active:
-        st.info("Build a model in the Model Lab tab first.")
+    st.caption("Choose a season, one of your saved models, and a week. Predictions are only generated when you press Compute Predictions.")
+
+    @st.cache_data(ttl=900,show_spinner=False)
+    def explorer_schedule():
+        """Merge the permanent game file with nflverse so future regular-season weeks are available."""
+        base=games.copy()
+        try:
+            url="https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv"
+            live=pd.read_csv(url,low_memory=False)
+            wanted=["game_id","season","week","gameday","away_team","home_team","away_score","home_score","result","game_type"]
+            live=live[[x for x in wanted if x in live.columns]].copy()
+            if "game_type" in live.columns:
+                live=live[live["game_type"].eq("REG")]
+            live=live.rename(columns={"gameday":"game_date","result":"home_margin"})
+            for col in ["season","week"]:
+                live[col]=pd.to_numeric(live[col],errors="coerce")
+            # Prefer the live schedule row for matching game IDs, while retaining permanent historical rows.
+            if "game_id" in base.columns and "game_id" in live.columns:
+                base=base[~base["game_id"].astype(str).isin(live["game_id"].astype(str))]
+            return pd.concat([base,live],ignore_index=True,sort=False)
+        except Exception:
+            return base
+
+    schedule=explorer_schedule()
+    schedule["season"]=pd.to_numeric(schedule["season"],errors="coerce")
+    schedule["week"]=pd.to_numeric(schedule["week"],errors="coerce")
+    explorer_seasons=sorted(schedule["season"].dropna().astype(int).unique())
+    saved_names=list(st.session_state.saved_models.keys())
+
+    if not saved_names:
+        st.info("Save a model first. Your saved models will appear here automatically.")
+    elif not explorer_seasons:
+        st.warning("No schedule data is available.")
     else:
-        hist=tg[(tg.season==season_pick)&(pd.to_numeric(tg.week,errors="coerce")<week_pick)].copy(); team_rating={}
-        if not hist.empty:
-            teams=sorted(set(hist.team.dropna())); raw=pd.DataFrame(index=teams); raw["rating"]=0.0; denom=sum(abs(v["weight"]) for v in active.values())
-            for col,spec in active.items():
-                vals=hist.groupby("team")[col].mean() if col in hist else pd.Series(dtype=float)
-                x=vals.reindex(teams); sd=x.std(ddof=0); zz=(x-x.mean())/sd if pd.notna(sd) and sd>0 else x*0
-                raw["rating"]+=zz.fillna(0)*spec["direction"]*spec["weight"]/denom
-            team_rating=raw["rating"].to_dict()
-        view=wg[wg.week==week_pick].copy(); view["home_rating"]=view.home_team.map(team_rating); view["away_rating"]=view.away_team.map(team_rating)
-        for _,g in view.sort_values("game_date").iterrows():
-            finished=pd.notna(g.get("home_margin")); edge=g.get("home_rating",np.nan)-g.get("away_rating",np.nan)
-            pick=(g.home_team if edge>=0 else g.away_team) if pd.notna(edge) else "—"
-            hs=g.get("home_score",np.nan); aws=g.get("away_score",np.nan)
-            if finished:
-                hw=g.home_margin>0; away_col="#39d353" if not hw else "#ff6b6b"; home_col="#39d353" if hw else "#ff6b6b"
-                score=(f"{int(aws)} – {int(hs)}" if pd.notna(aws) and pd.notna(hs) else f"Margin: {abs(float(g.home_margin)):.0f}")
-                st.markdown(f'<div style="border:1px solid #555;border-radius:14px;padding:14px;margin:8px 0"><b>Final</b> &nbsp; <span style="color:{away_col};font-size:20px;font-weight:800">{g.away_team}</span> <b>{score}</b> <span style="color:{home_col};font-size:20px;font-weight:800">{g.home_team}</span><br><span style="opacity:.8">Model pick: <b>{pick}</b></span></div>',unsafe_allow_html=True)
+        latest=max(explorer_seasons)
+        sg=schedule[schedule.season==latest].copy()
+        future=sg[pd.to_numeric(sg.get("home_margin"),errors="coerce").isna()]
+        default_week=int(future.week.min()) if not future.empty else int(sg.week.max())
+
+        c1,c2,c3=st.columns(3)
+        with c1:
+            season_pick=st.selectbox("Season",explorer_seasons,index=len(explorer_seasons)-1,key="explorer_season")
+        with c2:
+            preferred=st.session_state.get("saved_future_model")
+            model_index=saved_names.index(preferred) if preferred in saved_names else 0
+            model_name=st.selectbox("Saved Model",saved_names,index=model_index,key="explorer_saved_model")
+        wg=schedule[schedule.season==season_pick].copy()
+        wks=sorted(wg.week.dropna().astype(int).unique())
+        with c3:
+            week_index=wks.index(default_week) if season_pick==latest and default_week in wks else 0
+            week_pick=st.selectbox("Week",wks,index=week_index,key="explorer_week")
+
+        compute_week=st.button("🏈 Compute Predictions",type="primary",use_container_width=True)
+        request_sig=(int(season_pick),str(model_name),int(week_pick))
+
+        if compute_week:
+            model=st.session_state.saved_models[model_name]
+            model_stats=model.get("stats",{})
+            missing=[k for k in model_stats if k not in tg.columns]
+            if missing:
+                st.error("This saved model uses statistics that are no longer available: "+", ".join(label(k) for k in missing))
+                st.session_state.pop("week_prediction_payload",None)
             else:
-                detail=f" · Edge {abs(edge):.2f}" if pd.notna(edge) else " · Waiting for enough prior data"
-                st.markdown(f'<div style="border:1px solid #555;border-radius:14px;padding:14px;margin:8px 0"><b>{g.away_team} @ {g.home_team}</b><br>Model pick: <b>{pick}</b>{detail}</div>',unsafe_allow_html=True)
+                active={k:{"weight":float(v.get("weight",0)),"direction":int(v.get("direction",default_dir(k)))} for k,v in model_stats.items() if float(v.get("weight",0))>0}
+                hist=tg[(pd.to_numeric(tg.season,errors="coerce")==season_pick)&(pd.to_numeric(tg.week,errors="coerce")<week_pick)].copy()
+                team_rating={}
+                if not hist.empty and active:
+                    teams=sorted(set(hist.team.dropna()))
+                    raw=pd.DataFrame(index=teams); raw["rating"]=0.0
+                    denom=sum(abs(v["weight"]) for v in active.values())
+                    for col,spec in active.items():
+                        # Recent-window features are already pregame values; use the latest available value.
+                        if col.endswith(("_l3","_l5","_l8","_ewm")):
+                            vals=hist.sort_values(["team","game_date","game_id"]).groupby("team")[col].last()
+                        else:
+                            vals=hist.groupby("team")[col].mean()
+                        x=vals.reindex(teams); sd=x.std(ddof=0)
+                        zz=(x-x.mean())/sd if pd.notna(sd) and sd>0 else x*0
+                        raw["rating"]+=zz.fillna(0)*spec["direction"]*spec["weight"]/denom
+                    team_rating=raw["rating"].to_dict()
+
+                view=wg[wg.week==week_pick].copy()
+                view["home_rating"]=view.home_team.map(team_rating)
+                view["away_rating"]=view.away_team.map(team_rating)
+                view["model_edge"]=view.home_rating-view.away_rating
+                view["pick"]=np.where(view.model_edge.notna(),np.where(view.model_edge>=0,view.home_team,view.away_team),"—")
+                st.session_state["week_prediction_payload"]=(request_sig,view)
+
+        payload=st.session_state.get("week_prediction_payload")
+        if payload and payload[0]==request_sig:
+            view=payload[1]
+            st.markdown(f"### {model_name} · {season_pick} Week {week_pick}")
+            if view.empty:
+                st.warning("No games were found for this week.")
+            else:
+                for _,g in view.sort_values("game_date").iterrows():
+                    finished=pd.notna(g.get("home_margin")); edge=g.get("model_edge",np.nan); pick=g.get("pick","—")
+                    hs=g.get("home_score",np.nan); aws=g.get("away_score",np.nan)
+                    if finished:
+                        hw=float(g.home_margin)>0; away_col="#39d353" if not hw else "#ff6b6b"; home_col="#39d353" if hw else "#ff6b6b"
+                        score=(f"{int(aws)} – {int(hs)}" if pd.notna(aws) and pd.notna(hs) else f"Margin: {abs(float(g.home_margin)):.0f}")
+                        st.markdown(f'<div style="border:1px solid #555;border-radius:14px;padding:14px;margin:8px 0"><b>Final</b> &nbsp; <span style="color:{away_col};font-size:20px;font-weight:800">{g.away_team}</span> <b>{score}</b> <span style="color:{home_col};font-size:20px;font-weight:800">{g.home_team}</span><br><span style="opacity:.8">Model pick: <b>{pick}</b></span></div>',unsafe_allow_html=True)
+                    else:
+                        detail=f" · Edge {abs(float(edge)):.2f}" if pd.notna(edge) else " · Waiting for enough prior-season data"
+                        st.markdown(f'<div style="border:1px solid #555;border-radius:14px;padding:14px;margin:8px 0"><b>{g.away_team} @ {g.home_team}</b><br>Model pick: <b>{pick}</b>{detail}</div>',unsafe_allow_html=True)
+        elif payload:
+            st.info("Selections changed. Press **Compute Predictions** to run the selected saved model for this week.")
 
 
 with saved_page:
