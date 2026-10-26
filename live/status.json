@@ -1,9 +1,9 @@
 {
   "model_version": "SPATS_V1",
   "season": 2026,
-  "completed_games": 94,
+  "completed_games": 106,
   "team_profiles": 32,
-  "upcoming_games": 13,
+  "upcoming_games": 1,
   "latest_completed_week": 7,
   "next_week": 7
 }
